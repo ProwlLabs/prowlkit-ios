@@ -106,16 +106,6 @@ Prowl.start(
 )
 ```
 
-## Check Version
-
-You can expose/log the package version in your app:
-
-```swift
-import ProwlKit
-
-print("Prowl version:", Prowl.version)
-```
-
 ### 3) Open the inspector
 
 No extra view modifier is required.
@@ -137,6 +127,10 @@ On macOS, `Prowl.start()` automatically installs a menu bar item so you can open
 
 ## Configure Storage and Masking
 
+`Prowl.configure(...)` is `async` — it awaits the runtime actor so the
+configuration is in place before it returns. Always `await` it before calling
+`Prowl.start()`:
+
 ```swift
 import ProwlKit
 import ProwlCore
@@ -147,8 +141,10 @@ let masker = SensitiveDataMasker(
     sensitiveJSONKeys: ["password", "token", "accessToken"]
 )
 
-Prowl.configure(storage: storage, masker: masker)
-Prowl.start()
+Task { @MainActor in
+    await Prowl.configure(storage: storage, masker: masker)
+    Prowl.start()
+}
 ```
 
 ### Sensitive Data Masking Toggle
@@ -376,9 +372,9 @@ swift test
 ```
 
 2. Verify CI is green on both configured Xcode lanes (`latest-stable` and pinned lane).
-3. Confirm the package version in `Sources/Prowl/Prowl.swift` is final.
-4. Review public API surface (only intentional symbols should remain `public`).
-5. Validate docs examples in this `README.md` still match current behavior.
+3. Review public API surface (only intentional symbols should remain `public`).
+4. Validate docs examples in this `README.md` still match current behavior.
+5. Run `swift-format lint -r Sources Tests` and resolve findings.
 6. Create an immutable annotated tag and push it:
 
 ```bash
@@ -394,4 +390,15 @@ git push origin <version>
 - Prowl uses native APIs only (no third-party dependencies).
 - Log capture is designed to be idempotent and avoid side effects to host networking behavior.
 - `URLProtocol` loop prevention is handled internally.
+- Distributed via Swift Package Manager only — no CocoaPods spec is published.
 - See `CONTRIBUTING.md` for development guidelines and `SECURITY.md` for disclosure policy.
+
+## Documentation
+
+Public API has full DocC docs. A landing page lives at
+`Sources/ProwlKit/ProwlKit.docc/ProwlKit.md`. In Xcode: `Product → Build
+Documentation`. The Swift Package Index renders the catalogue automatically.
+
+## License
+
+Distributed under the MIT License — see [`LICENSE`](LICENSE).

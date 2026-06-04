@@ -9,6 +9,12 @@
 import SwiftUI
 import ProwlCore
 
+/// SwiftUI dashboard for the live Prowl request log.
+///
+/// On iOS, `Prowl.start()` auto-installs the shake-to-show affordance; embed
+/// this view yourself only when you need to host the inspector in your own
+/// debug screen. On macOS, it's hosted automatically by the menu-bar
+/// inspector.
 public struct ProwlInspectorView: View {
     private static let contentHorizontalInset: CGFloat = 4
 
@@ -16,9 +22,13 @@ public struct ProwlInspectorView: View {
     @State private var selectedLogID: NetworkLog.ID?
     @State private var iOSExportPayload: ProwlExportPayload?
     @State private var isSettingsPresented = false
-    
+
     @AppStorage("prowl_color_scheme") private var themeRaw: Int = 0
 
+    /// Creates an inspector view.
+    ///
+    /// - Parameter storage: Optional storage to display. Defaults to the
+    ///   runtime's shared storage when `nil`.
     public init(storage: ProwlStorage? = nil) {
         _viewModel = StateObject(wrappedValue: ProwlInspectorViewModel(storage: storage))
     }

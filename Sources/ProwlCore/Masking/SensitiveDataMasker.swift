@@ -9,7 +9,13 @@
 
 import Foundation
 
+/// Redacts secret values in HTTP headers and JSON bodies for safe display.
+///
+/// Header matching is case-insensitive. JSON key matching descends into
+/// nested objects/arrays. Free-form text replacement also redacts inline
+/// `Authorization`, `Bearer …`, `Cookie`, and PEM-style private key blocks.
 public struct SensitiveDataMasker: Sendable {
+    /// Header names redacted by default.
     public static let defaultSensitiveHeaders: Set<String> = [
         "authorization",
         "proxy-authorization",
@@ -19,6 +25,7 @@ public struct SensitiveDataMasker: Sendable {
         "x-auth-token"
     ]
 
+    /// JSON keys whose values are redacted by default.
     public static let defaultSensitiveJSONKeys: Set<String> = [
         "password",
         "passcode",
@@ -35,10 +42,14 @@ public struct SensitiveDataMasker: Sendable {
         "secret"
     ]
 
+    /// Header names that will be redacted (lowercased on init).
     public let sensitiveHeaders: Set<String>
+    /// JSON keys whose values will be redacted (lowercased on init).
     public let sensitiveJSONKeys: Set<String>
+    /// Replacement string used in redactions. Defaults to `"[REDACTED]"`.
     public let redactionToken: String
 
+    /// Creates a masker with custom header / JSON-key sets.
     public init(
         sensitiveHeaders: Set<String> = Self.defaultSensitiveHeaders,
         sensitiveJSONKeys: Set<String> = Self.defaultSensitiveJSONKeys,
@@ -49,6 +60,7 @@ public struct SensitiveDataMasker: Sendable {
         self.redactionToken = redactionToken
     }
 
+    /// Returns a copy of the headers with sensitive values replaced.
     public func mask(headers: [String: String]) -> [String: String] {
         var masked: [String: String] = [:]
         masked.reserveCapacity(headers.count)
@@ -59,6 +71,10 @@ public struct SensitiveDataMasker: Sendable {
         return masked
     }
 
+    /// Returns a redacted copy of a request/response body, or `nil` if `data` is `nil`.
+    ///
+    /// JSON bodies are parsed and redacted at the key level. All bodies also
+    /// undergo regex-based text redaction for inline secrets.
     public func mask(body data: Data?, contentType: String?) -> NetworkLog.Body? {
         guard let data else { return nil }
         let normalizedContentType = contentType?.lowercased() ?? ""

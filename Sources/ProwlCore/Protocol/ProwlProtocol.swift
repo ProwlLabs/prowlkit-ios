@@ -13,6 +13,12 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
     private static let handledKey = "com.prowlKit.handled"
     private static let requestIDKey = "com.prowlKit.requestID"
 
+    // State guarded by `lock`. The URL Loading System invokes
+    // `startLoading`/`stopLoading` on its own queue while the dataTask
+    // completion arrives on a separate session queue — so we serialize
+    // mutations and gate every `client?` call on the cancelled flag.
+    private let lock = NSLock()
+    private var cancelled = false
     private var session: URLSession?
     private var dataTask: URLSessionDataTask?
 
@@ -28,7 +34,7 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         if let isHandled = URLProtocol.property(forKey: handledKey, in: request) as? Bool, isHandled {
             return false
         }
-        
+
         if let absoluteString = request.url?.absoluteString,
            ProwlRuntime.shouldIgnore(absoluteString) {
             return false
@@ -54,14 +60,26 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         let proxiedRequest = mutableRequest as URLRequest
         let startedAt = Date()
 
+        // Note: building a fresh URLSession per request is intentional —
+        // ProwlProtocol filters itself out of the configuration's protocol
+        // classes so the proxied request doesn't recurse through Prowl.
+        // The cost is small (debugger-only path) and avoids cross-request
+        // state leakage from a shared session.
         let config = URLSessionConfiguration.default
         config.protocolClasses = (config.protocolClasses ?? []).filter { $0 != ProwlProtocol.self }
 
         Task {
+            guard !self.isCancelled() else { return }
+
             if let mockRule = await ProwlMocker.shared.findMatch(for: proxiedRequest) {
                 let mockURL = proxiedRequest.url ?? URL(string: "https://prowl.mock")!
-                let mockResponse = HTTPURLResponse(url: mockURL, statusCode: mockRule.mockStatusCode, httpVersion: "HTTP/1.1", headerFields: mockRule.mockHeaders)
-                
+                let mockResponse = HTTPURLResponse(
+                    url: mockURL,
+                    statusCode: mockRule.mockStatusCode,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: mockRule.mockHeaders
+                )
+
                 self.complete(
                     request: proxiedRequest,
                     requestBodyData: requestBodyData,
@@ -72,10 +90,28 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                 )
                 return
             }
-            
-            self.session = URLSession(configuration: config, delegate: ProwlRuntime.customSessionDelegate, delegateQueue: nil)
-            self.dataTask = self.session?.dataTask(with: proxiedRequest) { [weak self] data, response, error in
+
+            let newSession = URLSession(
+                configuration: config,
+                delegate: ProwlRuntime.customSessionDelegate,
+                delegateQueue: nil
+            )
+
+            // Race window: stopLoading may have run before we got here.
+            // Store the session under the lock and bail (invalidating) if so.
+            let stored: Bool = self.lock.withLock {
+                guard !self.cancelled else { return false }
+                self.session = newSession
+                return true
+            }
+            guard stored else {
+                newSession.invalidateAndCancel()
+                return
+            }
+
+            let task = newSession.dataTask(with: proxiedRequest) { [weak self] data, response, error in
                 guard let self else { return }
+                guard !self.isCancelled() else { return }
                 self.complete(
                     request: proxiedRequest,
                     requestBodyData: requestBodyData,
@@ -85,17 +121,38 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                     error: error
                 )
             }
-            self.dataTask?.resume()
+
+            let resumed: Bool = self.lock.withLock {
+                guard !self.cancelled else { return false }
+                self.dataTask = task
+                return true
+            }
+            guard resumed else {
+                task.cancel()
+                newSession.invalidateAndCancel()
+                return
+            }
+            task.resume()
         }
     }
 
     package override func stopLoading() {
-        dataTask?.cancel()
-        session?.invalidateAndCancel()
-        dataTask = nil
-        session = nil
+        let (taskToCancel, sessionToInvalidate): (URLSessionDataTask?, URLSession?) = lock.withLock {
+            cancelled = true
+            let taskCopy = dataTask
+            let sessionCopy = session
+            dataTask = nil
+            session = nil
+            return (taskCopy, sessionCopy)
+        }
+        taskToCancel?.cancel()
+        sessionToInvalidate?.invalidateAndCancel()
     }
-    
+
+    private func isCancelled() -> Bool {
+        lock.withLock { cancelled }
+    }
+
     private func complete(
         request: URLRequest,
         requestBodyData: Data?,
@@ -104,6 +161,11 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         response: URLResponse?,
         error: Error?
     ) {
+        // Re-check under lock to guarantee no client? call after stopLoading.
+        // URL Loading System contract: client callbacks are undefined behavior
+        // after stopLoading returns.
+        guard !isCancelled() else { return }
+
         if let response {
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         }
@@ -190,7 +252,7 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                 errorDescription: errorDescription,
                 endpointRateAlertTriggered: rateAlertTriggered
             )
-            
+
             await snapshot.storage.append(log)
         }
     }

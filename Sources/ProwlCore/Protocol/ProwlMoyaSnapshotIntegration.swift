@@ -12,9 +12,15 @@ import Foundation
 #if canImport(Moya)
 import Moya
 
+/// Moya `PluginType` that attaches request bodies to Prowl as snapshots.
+///
+/// Plug into your `MoyaProvider`'s `plugins` array so Prowl can display
+/// payloads that Moya assembles via its `Task` cases.
 public struct ProwlMoyaBodySnapshotPlugin: PluginType {
     public init() {}
 
+    /// Returns the request unchanged if a snapshot is already present;
+    /// otherwise attaches `httpBody` or the `Task`-derived body data.
     public func prepare(_ request: URLRequest, target: TargetType) -> URLRequest {
         if let existing = ProwlRequestBodySnapshot.body(from: request), !existing.isEmpty {
             return request

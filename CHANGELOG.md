@@ -46,10 +46,27 @@ Initial public release of ProwlKit.
 - No third-party dependencies — uses native `Foundation` + `SwiftUI` only.
 - Example app at `Example/Prowl-example` covering iOS tabs, macOS menu bar integration, and mock/edit flows.
 
+#### Documentation
+- MIT `LICENSE` at the repository root.
+- DocC catalogue at `Sources/ProwlKit/ProwlKit.docc` with a topic-grouped landing page.
+- `///` doc comments on every public symbol in `ProwlKit`, `ProwlCore`, and `ProwlUI`.
+- `.swift-format` config at the repository root with Swift 6.2-friendly defaults.
+
 #### Project & CI
 - CI workflow (`ci.yml`) and release validation workflow for tag builds.
+- iOS compatibility matrix builds against deployment targets 15, 16, 17, 18, and 26.
 - Public-maintainer docs: `CONTRIBUTING.md`, `SECURITY.md`, and GitHub release template.
 - Release checklist documented in `README.md`.
+
+### Changed
+- `Prowl.configure(...)` is now `async` and awaits the runtime actor, removing the race where a subsequent `Prowl.start()` could observe stale configuration.
+
+### Fixed
+- `ProwlProtocol` could call `client?.urlProtocol(...)` after `stopLoading` returned (undefined behavior per the URL Loading System contract). Added a lock-guarded `cancelled` flag checked before every client callback and before storing the session / data task.
+- Endpoint rate alert tests no longer race on the shared singleton — both tests are now in a `.serialized` suite.
+
+### Removed
+- `Prowl.version` and the "Check Version" section of the README. Swift Package Manager does not expose tag/version info to library code at runtime, so the hard-coded string was guaranteed to drift from real releases.
 
 [Unreleased]: https://github.com/ProwlKit/prowlkit-ios/compare/1.0.0...HEAD
 [1.0.0]: https://github.com/ProwlKit/prowlkit-ios/releases/tag/1.0.0

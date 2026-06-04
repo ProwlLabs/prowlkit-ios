@@ -12,9 +12,16 @@ import Foundation
 #if canImport(Alamofire)
 import Alamofire
 
+/// Alamofire `RequestInterceptor` that attaches request bodies to Prowl as
+/// snapshots during adaptation.
+///
+/// Plug into an Alamofire `Session` so Prowl can display request payloads that
+/// Alamofire builds via its parameter encoders.
 public final class ProwlAlamofireBodySnapshotInterceptor: RequestInterceptor {
     public init() {}
 
+    /// Forwards the request unchanged if it already has a snapshot or no body;
+    /// otherwise attaches the `httpBody` as a snapshot and returns the copy.
     public func adapt(
         _ urlRequest: URLRequest,
         for session: Session,

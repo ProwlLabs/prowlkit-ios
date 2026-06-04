@@ -14,7 +14,7 @@ public struct ProwlEndpointRateAlertRule: Sendable, Hashable, Identifiable {
         case urlContains(String)
         case urlRegularExpression(pattern: String)
     }
-
+    
     public let id: UUID
     public let match: Match
     public let threshold: Int
@@ -27,6 +27,7 @@ public struct ProwlEndpointRateAlertRule: Sendable, Hashable, Identifiable {
 }
 
 public enum ProwlEndpointRateAlerts {
+
     public static var rules: [ProwlEndpointRateAlertRule] {
         get { ProwlEndpointRateAlertCoordinator.shared.rules }
         set { ProwlEndpointRateAlertCoordinator.shared.rules = newValue }
