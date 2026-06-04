@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ios_deployment_target: ["15.0", "17.0", "18.0", "26.0"]
+        ios_deployment_target: ["15.0", "16.0", "17.0", "18.0", "26.0"]
 
     steps:
       - name: Checkout
@@ -58,7 +58,7 @@ jobs:
       - name: Build package for iOS compatibility target
         run: |
           xcodebuild \
-            -scheme Prowl-Package \
+            -scheme ProwlKit-Package \
             -destination "generic/platform=iOS Simulator" \
             -configuration Release \
             CODE_SIGNING_ALLOWED=NO \

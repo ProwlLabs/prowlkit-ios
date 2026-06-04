@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ProwlKit/prowlkit-ios/tags"><img alt="Latest Tag" src="https://img.shields.io/github/v/tag/elmeeee/Prowl?sort=semver&label=version"></a>
-  <a href="https://github.com/elmeeee/Prowl/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/elmeeee/Prowl/ci.yml?branch=main&label=ci"></a>
+  <img alt="Status" src="https://img.shields.io/badge/status-unreleased-lightgrey">
+  <a href="https://github.com/ProwlKit/prowlkit-ios/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ProwlKit/prowlkit-ios/ci.yml?branch=main&label=ci"></a>
   <img alt="iOS" src="https://img.shields.io/badge/iOS-15%2B-0A84FF">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.2-F05138">
 </p>
