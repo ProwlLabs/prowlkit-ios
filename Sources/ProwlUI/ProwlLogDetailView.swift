@@ -15,10 +15,18 @@ import UIKit
 import AppKit
 #endif
 
+/// SwiftUI detail screen for a single captured log (Info, Request, Response tabs).
+///
+/// Embed when building a custom inspector layout. ``ProwlInspectorView`` uses
+/// this view internally on iPad-style and macOS split layouts.
 public struct ProwlLogDetailView: View {
+    /// Tabs shown in the detail header.
     public enum Tab: String, CaseIterable, Identifiable {
+        /// URL, timing, status, and metadata.
         case info = "Info"
+        /// Request headers and body.
         case request = "Request"
+        /// Response headers and body.
         case response = "Response"
 
         public var id: String { rawValue }
@@ -42,6 +50,7 @@ public struct ProwlLogDetailView: View {
     @State private var isShowingFullRequestBody = false
     @State private var isShowingFullResponseBody = false
 
+    /// Creates a detail view for one captured log entry.
     public init(log: NetworkLog) {
         self.log = log
     }

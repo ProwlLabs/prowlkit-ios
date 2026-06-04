@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status" src="https://img.shields.io/badge/status-unreleased-lightgrey">
+  <a href="https://github.com/ProwlKit/prowlkit-ios/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/tag/ProwlKit/prowlkit-ios?label=version&sort=semver"></a>
   <a href="https://github.com/ProwlKit/prowlkit-ios/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ProwlKit/prowlkit-ios/ci.yml?branch=main&label=ci"></a>
   <img alt="iOS" src="https://img.shields.io/badge/iOS-15%2B-0A84FF">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.2-F05138">
@@ -395,9 +395,17 @@ git push origin <version>
 
 ## Documentation
 
-Public API has full DocC docs. A landing page lives at
-`Sources/ProwlKit/ProwlKit.docc/ProwlKit.md`. In Xcode: `Product → Build
-Documentation`. The Swift Package Index renders the catalogue automatically.
+Full **DocC** documentation ships with the `ProwlKit` target:
+
+| Resource | Path |
+| --- | --- |
+| Module landing | `Sources/ProwlKit/ProwlKit.docc/ProwlKit.md` |
+| Getting Started | `Sources/ProwlKit/ProwlKit.docc/GettingStarted.md` |
+| Configuration | `Sources/ProwlKit/ProwlKit.docc/Configuration.md` |
+| Advanced Features | `Sources/ProwlKit/ProwlKit.docc/AdvancedFeatures.md` |
+| HTTP Client Integrations | `Sources/ProwlKit/ProwlKit.docc/HTTPClientIntegrations.md` |
+
+In Xcode: **Product → Build Documentation**. The [Swift Package Index](https://swiftpackageindex.com) renders the catalogue from tagged releases.
 
 ## License
 

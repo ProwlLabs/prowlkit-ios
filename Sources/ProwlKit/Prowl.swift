@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import ProwlCore
+@_exported import ProwlCore
 @_exported import ProwlUI
 
 /// The main entry point for ProwlKit.

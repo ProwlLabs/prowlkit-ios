@@ -13,7 +13,7 @@
 
 - [ ] `swift test` passes
 - [ ] iOS compatibility build matrix passes
-- [ ] Version in `Sources/Prowl/Prowl.swift` matches tag
+- [ ] Annotated tag pushed (README version badge updates automatically from latest tag)
 - [ ] `README.md` examples validated
 
 ## Known Limitations

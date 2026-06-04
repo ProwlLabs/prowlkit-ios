@@ -1,8 +1,9 @@
+# ``ProwlKit``
+
 @Metadata {
     @DisplayName("ProwlKit")
+    @TitleHeading("Framework")
 }
-
-# ``ProwlKit``
 
 A lightweight network debugger for Apple platforms — interception, logging,
 masking, mocking, and a SwiftUI inspector — distributed via Swift Package
@@ -11,12 +12,23 @@ Manager.
 ## Overview
 
 ProwlKit installs a `URLProtocol` at startup and captures every HTTP/HTTPS
-request that flows through `URLSession`. Captured logs are held in a
-thread-safe FIFO buffer, optionally masked for sensitive headers and JSON
-keys, and surfaced in a SwiftUI inspector (`ProwlInspectorView`) reachable via
-a shake gesture on iOS or the menu-bar icon on macOS.
+request that flows through `URLSession`. Captured logs live in a thread-safe
+FIFO buffer, can be masked for sensitive headers and JSON keys, and appear in
+a SwiftUI inspector (``ProwlInspectorView``) that you open with a shake on iOS
+or from the menu-bar icon on macOS.
 
-Quick start:
+The library ships three SPM products:
+
+| Product | Use when |
+| --- | --- |
+| **ProwlKit** | You want the full experience: ``Prowl`` facade, inspector UI, and core types re-exported. |
+| **ProwlCore** | You only need interception, storage, masking, and formatting — no SwiftUI. |
+| **ProwlUI** | You embed ``ProwlInspectorView`` yourself and manage ``ProwlStorage`` separately. |
+
+Supported platforms: iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+.
+Swift 6.2+. No third-party dependencies.
+
+### Quick start
 
 ```swift
 import ProwlKit
@@ -32,31 +44,70 @@ struct DemoApp: App {
 }
 ```
 
+After ``Prowl/start(ignoredURLs:ignoredURLRegexes:)``:
+
+- **iOS** — shake the device to toggle the inspector.
+- **macOS** — click the **Prowl** menu-bar item (shortcut: **⌘⇧P**).
+
+### How interception works
+
+1. ``Prowl/start(ignoredURLs:ignoredURLRegexes:)`` registers `ProwlProtocol` and
+   enables platform inspector affordances.
+2. Matching `URLSession` traffic is mirrored into ``NetworkLog`` entries and
+   appended to ``ProwlStorage``.
+3. Optional ``SensitiveDataMasker`` redacts secrets before storage.
+4. ``ProwlInspectorView`` observes storage and renders search, filters, detail
+   tabs, export, and mock editing.
+
+Loop prevention and side-effect-free forwarding to the real network stack are
+handled inside the package — your app’s networking behavior stays unchanged.
+
 ## Topics
+
+### Essentials
+
+- <doc:GettingStarted>
+- <doc:Configuration>
+- <doc:AdvancedFeatures>
+- <doc:HTTPClientIntegrations>
 
 ### Entry point
 
 - ``Prowl``
 
-### Storage and models
+### Captured data
 
-- ``ProwlStorage``
 - ``NetworkLog``
+- ``NetworkLog/Body``
+- ``ProwlStorage``
 
-### Masking and transforms
+### Privacy and display
 
 - ``SensitiveDataMasker``
 - ``ProwlResponseBodyLoggingTransforming``
 
-### Endpoint rate alerts
+### Traffic analysis
 
 - ``ProwlEndpointRateAlerts``
 - ``ProwlEndpointRateAlertRule``
+- ``ProwlEndpointRateAlertRule/Match``
 
-### Request body snapshots
+### Request body capture
 
 - ``ProwlRequestBodySnapshot``
+- <doc:HTTPClientIntegrations>
+
+### Third-party HTTP clients
+
+See <doc:HTTPClientIntegrations> for Alamofire and Moya setup (symbols available when those packages are linked to your target).
+
+### Export and formatting
+
+- ``ProwlLogFormatter``
+- ``ProwlExportFormat``
 
 ### Inspector UI
 
 - ``ProwlInspectorView``
+- ``ProwlLogDetailView``
+- ``ProwlLogDetailView/Tab``

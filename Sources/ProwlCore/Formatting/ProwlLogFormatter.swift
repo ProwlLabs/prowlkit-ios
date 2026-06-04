@@ -9,11 +9,14 @@
 
 import Foundation
 
-
+/// Output format for bulk log export from the inspector or ``ProwlLogFormatter``.
 public enum ProwlExportFormat: String, Sendable {
+    /// Human-readable request/response blocks separated by dividers.
     case formattedText
+    /// One `curl` command per log, suitable for shell replay.
     case curlCommands
 
+    /// Suggested filename when saving or sharing exported content.
     public var fileName: String {
         switch self {
         case .formattedText: return "prowl-logs.txt"
@@ -22,8 +25,12 @@ public enum ProwlExportFormat: String, Sendable {
     }
 }
 
+/// Converts ``NetworkLog`` entries into shareable text and pretty-printed bodies.
+///
+/// Used by the inspector export actions and available for custom tooling.
 public enum ProwlLogFormatter {
 
+    /// Exports multiple logs in the given ``ProwlExportFormat``.
     public static func export(logs: [NetworkLog], as format: ProwlExportFormat) -> String {
         switch format {
         case .formattedText: return formattedText(logs: logs)
@@ -55,6 +62,7 @@ public enum ProwlLogFormatter {
         return body.data.base64EncodedString()
     }
 
+    /// Builds a single-log share payload (same layout as the detail view share action).
     public static func shareText(log: NetworkLog) -> String {
         var lines: [String] = []
         lines.append("*INFO*")

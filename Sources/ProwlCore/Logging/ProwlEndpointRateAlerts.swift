@@ -9,16 +9,35 @@
 
 import Foundation
 
+/// A rule that flags an endpoint when request volume crosses a threshold.
+///
+/// Evaluation keys requests by HTTP method + host + path (query is ignored).
+/// The request whose count reaches ``threshold`` sets
+/// ``NetworkLog/endpointRateAlertTriggered`` to `true`.
+///
+/// Assign rules via `Prowl.endpointRateAlertRules` or ``ProwlEndpointRateAlerts/rules``.
 public struct ProwlEndpointRateAlertRule: Sendable, Hashable, Identifiable {
+    /// How a rule selects matching traffic.
     public enum Match: Sendable, Hashable {
+        /// Absolute URL string must contain this fragment.
         case urlContains(String)
+        /// Absolute URL string must match this regular expression.
         case urlRegularExpression(pattern: String)
     }
-    
+
+    /// Stable identifier for this rule.
     public let id: UUID
+    /// Match predicate applied to each captured request URL.
     public let match: Match
+    /// Number of matching requests before the alert fires (minimum `1`).
     public let threshold: Int
 
+    /// Creates a rule with a match predicate and hit count.
+    ///
+    /// - Parameters:
+    ///   - id: Unique rule id. Defaults to a new `UUID`.
+    ///   - match: Substring or regex match against the absolute URL string.
+    ///   - threshold: Inclusive count at which the alert triggers.
     public init(id: UUID = UUID(), match: Match, threshold: Int) {
         self.id = id
         self.match = match
@@ -26,13 +45,19 @@ public struct ProwlEndpointRateAlertRule: Sendable, Hashable, Identifiable {
     }
 }
 
+/// Global coordinator for endpoint rate-alert rules and per-rule counters.
+///
+/// Prefer `Prowl.endpointRateAlertRules` and `Prowl.resetEndpointRateAlertCounters()`
+/// in app code; this type is the lower-level hook used by the runtime.
 public enum ProwlEndpointRateAlerts {
 
+    /// Active rules, in insertion order.
     public static var rules: [ProwlEndpointRateAlertRule] {
         get { ProwlEndpointRateAlertCoordinator.shared.rules }
         set { ProwlEndpointRateAlertCoordinator.shared.rules = newValue }
     }
 
+    /// Clears all per-rule hit counters without removing rules.
     public static func resetCounters() {
         ProwlEndpointRateAlertCoordinator.shared.reset()
     }
