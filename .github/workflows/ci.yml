@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["*"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  unit-tests:
+    name: Unit Tests (${{ matrix.xcode.name }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        xcode:
+          - name: latest-stable
+            version: "latest-stable"
+          - name: 26.3
+            version: "26.3"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ matrix.xcode.version }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.xcode.version }}
+
+      - name: Verify Swift version
+        run: swift --version
+
+      - name: Run Swift tests
+        run: swift test
+
+  ios-compatibility-build:
+    name: iOS Build (target ${{ matrix.ios_deployment_target }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        ios_deployment_target: ["15.0", "17.0", "18.0", "26.0"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.3 (Swift 6.2)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.3"
+
+      - name: Verify Swift version
+        run: swift --version
+
+      - name: Build package for iOS compatibility target
+        run: |
+          xcodebuild \
+            -scheme Prowl-Package \
+            -destination "generic/platform=iOS Simulator" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=${{ matrix.ios_deployment_target }} \
+            build

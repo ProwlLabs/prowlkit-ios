@@ -1,7 +1,7 @@
 # ProwlKit
 
 <p align="center">
-  <img src="Sources/Prowl/Resources/prowl_icon.png" alt="Prowl Icon" width="220" />
+  <img src="Sources/ProwlKit/Resources/prowl_icon.png" alt="Prowl Icon" width="220" />
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@ If you use `Package.swift` directly, pin like this:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/elmeeee/Prowl.git", exact: "<latest-release-tag>")
+    .package(url: "https://github.com/ProwlKit/prowlkit-ios.git", exact: "<latest-release-tag>")
 ]
 ```
 
