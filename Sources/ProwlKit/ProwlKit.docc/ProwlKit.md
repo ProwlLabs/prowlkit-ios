@@ -3,11 +3,17 @@
 @Metadata {
     @DisplayName("ProwlKit")
     @TitleHeading("Framework")
+    @Available(iOS, introduced: "15.0")
+    @Available(iPadOS, introduced: "15.0")
+    @Available(macOS, introduced: "12.0")
+    @Available(watchOS, introduced: "8.0")
+    @Available(tvOS, introduced: "15.0")
+    @Available(visionOS, introduced: "1.0")
+    @SupportedLanguage(swift)
 }
 
-A lightweight network debugger for Apple platforms — interception, logging,
-masking, mocking, and a SwiftUI inspector — distributed via Swift Package
-Manager.
+Debug and inspect network traffic in your apps with URL interception, sensitive-data
+masking, and a built-in SwiftUI inspector.
 
 ## Overview
 
@@ -25,8 +31,7 @@ The library ships three SPM products:
 | **ProwlCore** | You only need interception, storage, masking, and formatting — no SwiftUI. |
 | **ProwlUI** | You embed ``ProwlInspectorView`` yourself and manage ``ProwlStorage`` separately. |
 
-Supported platforms: iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, visionOS 1+.
-Swift 6.2+. No third-party dependencies.
+Requires Swift 6.2+. No third-party dependencies.
 
 ### Quick start
 
