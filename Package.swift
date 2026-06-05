@@ -32,13 +32,16 @@ let package = Package(
         ),
         .target(
             name: "ProwlUI",
-            dependencies: ["ProwlCore"]
+            dependencies: ["ProwlCore"],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .target(
             name: "ProwlKit",
             dependencies: ["ProwlCore", "ProwlUI"],
             resources: [
-                .process("Resources/prowlKit.png")
+                .process("Resources")
             ]
         ),
         .testTarget(

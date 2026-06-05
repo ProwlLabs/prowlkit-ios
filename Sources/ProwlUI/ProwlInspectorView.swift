@@ -37,6 +37,84 @@ public struct ProwlInspectorView: View {
     @Environment(\.colorScheme) private var systemColorScheme
 
     public var body: some View {
+        Group {
+            #if os(macOS)
+            if #available(macOS 13.0, *) {
+                macSplitInspector
+            } else {
+                macLegacyInspector
+            }
+            #else
+            iosInspector
+            #endif
+        }
+        .preferredColorScheme(colorScheme)
+        #if os(iOS) || os(visionOS)
+        .sheet(item: $iOSExportPayload) { payload in
+            ProwlActivityView(activityItems: [payload.content])
+        }
+        #endif
+        #if os(macOS)
+        .sheet(isPresented: $isSettingsPresented) {
+            macSettingsSheet
+        }
+        #endif
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch themeRaw {
+        case 1: return .light
+        case 2: return .dark
+        default: return nil
+        }
+    }
+
+    #if os(macOS)
+    @available(macOS 13.0, *)
+    private var macSplitInspector: some View {
+        NavigationSplitView {
+            macSidebar
+                .navigationSplitViewColumnWidth(min: 340, ideal: 400, max: 500)
+        } detail: {
+            detailPane
+        }
+        .searchable(text: $viewModel.searchText, prompt: "Search URL")
+    }
+
+    private var macLegacyInspector: some View {
+        NavigationView {
+            macSidebar
+                .frame(minWidth: 340, idealWidth: 400, maxWidth: 500)
+            detailPane
+        }
+        .searchable(text: $viewModel.searchText, prompt: "Search URL")
+    }
+
+    private var macSidebar: some View {
+        dashboardList
+            .listStyle(.sidebar)
+            .toolbar { macToolbarContent }
+    }
+
+    @ViewBuilder
+    private var macSettingsSheet: some View {
+        let settings = ProwlSettingsView(
+            viewModel: viewModel,
+            onExportText: { exportLogs(as: .formattedText) },
+            onExportCURL: { exportLogs(as: .curlCommands) }
+        )
+        if #available(macOS 13.0, *) {
+            NavigationStack { settings }
+                .frame(minWidth: 560, minHeight: 520)
+        } else {
+            NavigationView { settings }
+                .frame(minWidth: 560, minHeight: 520)
+        }
+    }
+    #endif
+
+    #if !os(macOS)
+    private var iosInspector: some View {
         NavigationView {
             dashboardList
                 .navigationTitle("Prowl")
@@ -50,38 +128,15 @@ public struct ProwlInspectorView: View {
                 .searchable(text: $viewModel.searchText, prompt: "Search URL")
                 #endif
                 .toolbar { toolbarContent }
-            #if os(macOS) || os(visionOS)
+            #if os(visionOS)
             detailPane
             #endif
         }
         #if os(iOS)
         .navigationViewStyle(.stack)
         #endif
-        .preferredColorScheme(colorScheme)
-        #if os(iOS) || os(visionOS)
-        .sheet(item: $iOSExportPayload) { payload in
-            ProwlActivityView(activityItems: [payload.content])
-        }
-        #endif
-        #if os(macOS)
-        .sheet(isPresented: $isSettingsPresented) {
-            ProwlSettingsView(
-                viewModel: viewModel,
-                onExportText: { exportLogs(as: .formattedText) },
-                onExportCURL: { exportLogs(as: .curlCommands) }
-            )
-            .frame(minWidth: 560, minHeight: 520)
-        }
-        #endif
     }
-
-    private var colorScheme: ColorScheme? {
-        switch themeRaw {
-        case 1: return .light
-        case 2: return .dark
-        default: return nil
-        }
-    }
+    #endif
 
     private var dashboardList: some View {
         let logs = viewModel.filteredLogs
@@ -104,9 +159,9 @@ public struct ProwlInspectorView: View {
                 .listRowInsets(
                     EdgeInsets(
                         top: 6,
-                        leading: Self.contentHorizontalInset,
+                        leading: macListHorizontalInset,
                         bottom: 6,
-                        trailing: Self.contentHorizontalInset
+                        trailing: macListHorizontalInset
                     )
                 )
                 .listRowBackground(Color.clear)
@@ -135,19 +190,12 @@ public struct ProwlInspectorView: View {
                 emptyStateView(title: "No Logs", subtitle: "No requests match your filters.")
             }
         }
-        #if os(macOS)
-        // Prevent first list row from appearing under toolbar/search field
-        // when the window initially renders.
-        .safeAreaInset(edge: .top) {
-            Color.clear.frame(height: 10)
-        }
-        #endif
     }
 
     @ViewBuilder
     private func dashboardListRow(for log: NetworkLog) -> some View {
         #if os(macOS) || os(visionOS)
-        ProwlDashboardRowView(log: log)
+        ProwlDashboardRowView(log: log, isSelected: selectedLogID == log.id)
             .tag(log.id)
         #else
         NavigationLink {
@@ -166,23 +214,36 @@ public struct ProwlInspectorView: View {
     }
 
     private var inspectorStatusRow: some View {
-        HStack(spacing: 4) {
-            Text("Prowl Status:")
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(.secondary)
-
-            statusChipsLayout
+        Group {
+            #if os(macOS)
+            statusChipsRow
+            #else
+            HStack(spacing: 4) {
+                Text("Prowl Status:")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+                statusChipsLayout
+            }
+            #endif
         }
         .padding(.vertical, 4)
         .listRowInsets(
             EdgeInsets(
                 top: 6,
-                leading: Self.contentHorizontalInset,
+                leading: macListHorizontalInset,
                 bottom: 6,
-                trailing: Self.contentHorizontalInset
+                trailing: macListHorizontalInset
             )
         )
         .listRowBackground(Color.clear)
+    }
+
+    private var macListHorizontalInset: CGFloat {
+        #if os(macOS)
+        12
+        #else
+        Self.contentHorizontalInset
+        #endif
     }
 
     @ViewBuilder
@@ -262,20 +323,9 @@ public struct ProwlInspectorView: View {
     }
     #endif
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-    #if os(iOS)
-        ToolbarItem(placement: .navigationBarLeading) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-            }
-            .accessibilityLabel("Dismiss")
-        }
-    #endif
-
     #if os(macOS)
+    @ToolbarContentBuilder
+    private var macToolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Button(role: .destructive) {
                 viewModel.clearLogs()
@@ -290,7 +340,23 @@ public struct ProwlInspectorView: View {
                 Image(systemName: "gearshape")
             }
         }
-    #elseif !os(watchOS)
+    }
+    #endif
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+    #if os(iOS)
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .accessibilityLabel("Dismiss")
+        }
+    #endif
+
+    #if !os(macOS) && !os(watchOS)
         ToolbarItemGroup(placement: .primaryAction) {
             Button(role: .destructive) {
                 viewModel.clearLogs()

@@ -22,29 +22,31 @@ struct ProwlDashboardRowView: View {
     }()
 
     let log: NetworkLog
+    var isSelected: Bool = false
 
-    init(log: NetworkLog) {
+    init(log: NetworkLog, isSelected: Bool = false) {
         self.log = log
+        self.isSelected = isSelected
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: rowSpacing) {
                 methodBadge(log.method)
-                
+
                 Text(log.url?.path.isEmpty == false ? (log.url?.path ?? "/") : "/")
                     .font(pathFont)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .foregroundColor(.primary)
-                
+                    .foregroundColor(primaryTextColor)
+
                 Spacer(minLength: 8)
-                
+
                 Text(Self.timestampFormatter.string(from: log.startedAt))
                     .font(metaFont)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(secondaryTextColor)
             }
-            
+
             HStack(spacing: 8) {
                 statusBadge(statusCode: log.statusCode)
 
@@ -55,25 +57,28 @@ struct ProwlDashboardRowView: View {
                         Text("RATE")
                             .font(.caption2.weight(.heavy))
                     }
-                    .foregroundColor(.orange)
+                    .foregroundColor(isSelectedOnMac ? .white : .orange)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Color.orange.opacity(0.18), in: Capsule())
+                    .background(
+                        (isSelectedOnMac ? Color.white.opacity(0.22) : Color.orange.opacity(0.18)),
+                        in: Capsule()
+                    )
                     .accessibilityLabel("Endpoint rate threshold reached")
                 }
-                
+
                 if let host = log.url?.host {
                     Text(host)
                         .font(hostFont)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(secondaryTextColor)
                         .lineLimit(1)
                 }
-                
+
                 Spacer(minLength: 8)
-                
+
                 Text(String(format: "%.3fs", log.duration))
                     .font(metaFont)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(secondaryTextColor)
             }
         }
         .padding(.vertical, rowVerticalPadding)
@@ -81,31 +86,57 @@ struct ProwlDashboardRowView: View {
 
     @ViewBuilder
     private func methodBadge(_ method: String) -> some View {
+        let color = methodColor(method)
         Text(method.uppercased())
             .font(badgeFont)
-            .foregroundColor(methodColor(method))
+            .foregroundColor(isSelectedOnMac ? .white : color)
             .padding(.horizontal, badgeHorizontalPadding)
             .padding(.vertical, badgeVerticalPadding)
-            .background(methodColor(method).opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+            .background(
+                (isSelectedOnMac ? Color.white.opacity(0.22) : color.opacity(0.15)),
+                in: RoundedRectangle(cornerRadius: 6)
+            )
     }
 
     @ViewBuilder
     private func statusBadge(statusCode: Int?) -> some View {
+        let color = statusColor(statusCode)
         HStack(spacing: 4) {
             Circle()
-                .fill(statusColor(statusCode))
+                .fill(isSelectedOnMac ? Color.white : color)
                 .frame(width: statusDotSize, height: statusDotSize)
             Text(statusCode.map { "\($0)" } ?? "ERR")
                 .font(statusFont)
-                .foregroundColor(statusColor(statusCode))
+                .foregroundColor(isSelectedOnMac ? .white : color)
         }
         .padding(.horizontal, badgeHorizontalPadding)
         .padding(.vertical, badgeVerticalPadding)
-        .background(statusColor(statusCode).opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+        .background(
+            (isSelectedOnMac ? Color.white.opacity(0.22) : color.opacity(0.15)),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+    }
+
+    private var isSelectedOnMac: Bool {
+        #if os(macOS)
+        isSelected
+        #else
+        false
+        #endif
+    }
+
+    private var primaryTextColor: Color {
+        isSelectedOnMac ? .white : .primary
+    }
+
+    private var secondaryTextColor: Color {
+        isSelectedOnMac ? Color.white.opacity(0.88) : .secondary
     }
 
     private var isRegularWidthLayout: Bool {
-#if os(iOS) || os(visionOS)
+#if os(macOS)
+        return true
+#elseif os(iOS) || os(visionOS)
         return horizontalSizeClass == .regular
 #else
         return false

@@ -16,23 +16,25 @@ import SwiftUI
 enum ProwlMenuBarInspector {
     private static var statusItem: NSStatusItem?
     private static var actionHandler: ActionHandler?
-    private static var popover: NSPopover?
     private static var inspectorWindowController: NSWindowController?
+    private static var globalKeyboardMonitor: Any?
+    private static var localKeyboardMonitor: Any?
 
     static func enable() {
         guard statusItem == nil else { return }
         installStatusItem()
+        installKeyboardShortcut()
     }
 
     static func disable() {
-        closePopover()
+        removeKeyboardShortcut()
         hide()
         if let statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
         }
         actionHandler = nil
-        popover = nil
+        inspectorWindowController = nil
     }
 
     static func show() {
@@ -44,7 +46,7 @@ enum ProwlMenuBarInspector {
     }
 
     static func hide() {
-        inspectorWindowController?.close()
+        inspectorWindowController?.window?.orderOut(nil)
     }
 
     static func toggle() {
@@ -55,81 +57,91 @@ enum ProwlMenuBarInspector {
         }
     }
 
+    private static let menuBarIconHeight: CGFloat = 18
+
     private static func installStatusItem() {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let actionHandler = ActionHandler()
-        if let button = statusItem.button {
-            button.title = "Prowl"
-            button.image = menuBarIconImage()
-            button.imagePosition = .imageLeading
-            button.toolTip = "Open Prowl Inspector Panel"
+        if let button = statusItem.button, let icon = menuBarIconImage() {
+            button.title = ""
+            button.image = icon
+            button.imagePosition = .imageOnly
+            button.toolTip = "Prowl Inspector (⌘⇧P)"
             button.target = actionHandler
             button.action = #selector(ActionHandler.statusItemClicked(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            statusItem.length = icon.size.width + 8
         }
         self.statusItem = statusItem
         self.actionHandler = actionHandler
     }
 
-    private static func togglePopover(from button: NSStatusBarButton) {
-        let popover = ensurePopover()
-        if popover.isShown {
-            closePopover()
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
+    private static func installKeyboardShortcut() {
+        globalKeyboardMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            _ = handleKeyboardShortcut(event)
+        }
+        localKeyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyboardShortcut(event) ? nil : event
         }
     }
 
-    private static func closePopover() {
-        popover?.performClose(nil)
+    private static func removeKeyboardShortcut() {
+        if let globalKeyboardMonitor {
+            NSEvent.removeMonitor(globalKeyboardMonitor)
+            self.globalKeyboardMonitor = nil
+        }
+        if let localKeyboardMonitor {
+            NSEvent.removeMonitor(localKeyboardMonitor)
+            self.localKeyboardMonitor = nil
+        }
     }
 
-    private static func ensurePopover() -> NSPopover {
-        if let popover {
-            return popover
+    @discardableResult
+    private static func handleKeyboardShortcut(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.command),
+              event.modifierFlags.contains(.shift),
+              event.charactersIgnoringModifiers?.lowercased() == "p" else {
+            return false
         }
+        toggle()
+        return true
+    }
 
-        let popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-        popover.contentSize = NSSize(width: 340, height: 220)
-        popover.contentViewController = NSHostingController(
-            rootView: ProwlStatusPopoverView(
-                icon: menuBarIconImage(),
-                onOpenInspector: {
-                    closePopover()
-                    show()
-                },
-                onToggleInspector: {
-                    closePopover()
-                    toggle()
-                },
-                onHideInspector: {
-                    closePopover()
-                    hide()
-                },
-                onClose: {
-                    closePopover()
-                }
-            )
+    private static func showContextMenu(from button: NSStatusBarButton) {
+        let menu = NSMenu()
+        let isVisible = inspectorWindowController?.window?.isVisible == true
+
+        let toggleItem = NSMenuItem(
+            title: isVisible ? "Hide Inspector" : "Show Inspector",
+            action: #selector(ActionHandler.toggleInspector(_:)),
+            keyEquivalent: ""
         )
+        toggleItem.target = actionHandler
+        menu.addItem(toggleItem)
 
-        self.popover = popover
-        return popover
+        menu.addItem(.separator())
+
+        let shortcutItem = NSMenuItem(
+            title: "Shortcut: ⌘⇧P",
+            action: nil,
+            keyEquivalent: ""
+        )
+        shortcutItem.isEnabled = false
+        menu.addItem(shortcutItem)
+
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
     }
 
     private static func menuBarIconImage() -> NSImage? {
-        if let iconURL = Bundle.module.url(forResource: "prowlKit", withExtension: "png"),
-           let icon = NSImage(contentsOf: iconURL) {
-            icon.size = NSSize(width: 18, height: 18)
-            icon.isTemplate = false
-            return icon
+        guard let url = Bundle.module.url(forResource: "prowlKitWhite", withExtension: "png"),
+              let icon = NSImage(contentsOf: url) else {
+            return nil
         }
 
-        return NSImage(
-            systemSymbolName: "ladybug.fill",
-            accessibilityDescription: "Prowl Inspector"
-        )
+        let aspect = icon.size.width / max(icon.size.height, 1)
+        icon.size = NSSize(width: menuBarIconHeight * aspect, height: menuBarIconHeight)
+        icon.isTemplate = false
+        return icon
     }
 
     private static func ensureWindowController() -> NSWindowController {
@@ -139,11 +151,11 @@ enum ProwlMenuBarInspector {
 
         let host = NSHostingController(rootView: ProwlInspectorView())
         let window = NSWindow(contentViewController: host)
-        window.title = "Prowl Inspector"
+        window.title = ""
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.styleMask.remove(.fullSizeContentView)
-        window.titlebarAppearsTransparent = false
-        window.toolbarStyle = .expanded
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
         window.setContentSize(NSSize(width: 980, height: 680))
         window.minSize = NSSize(width: 860, height: 560)
         window.isReleasedWhenClosed = false
@@ -157,62 +169,17 @@ enum ProwlMenuBarInspector {
     private final class ActionHandler: NSObject {
         @objc func statusItemClicked(_ sender: Any?) {
             guard let button = ProwlMenuBarInspector.statusItem?.button else { return }
-            ProwlMenuBarInspector.togglePopover(from: button)
-        }
-    }
-}
 
-private struct ProwlStatusPopoverView: View {
-    let icon: NSImage?
-    let onOpenInspector: () -> Void
-    let onToggleInspector: () -> Void
-    let onHideInspector: () -> Void
-    let onClose: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: 22, height: 22)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                }
-                Text("Prowl Inspector")
-                    .font(.headline)
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+            if NSApp.currentEvent?.type == .rightMouseUp {
+                ProwlMenuBarInspector.showContextMenu(from: button)
+            } else {
+                ProwlMenuBarInspector.toggle()
             }
-
-            Text("Network debugger is running. Open inspector from this panel.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 10) {
-                Button("Open Inspector", action: onOpenInspector)
-                    .buttonStyle(.borderedProminent)
-                Button("Toggle", action: onToggleInspector)
-                    .buttonStyle(.bordered)
-                Button("Hide", action: onHideInspector)
-                    .buttonStyle(.bordered)
-            }
-
-            Divider()
-
-            Text("Shortcut: Command + Shift + P")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 0)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(NSColor.windowBackgroundColor))
+
+        @objc func toggleInspector(_ sender: Any?) {
+            ProwlMenuBarInspector.toggle()
+        }
     }
 }
 #endif

@@ -112,7 +112,12 @@ public struct ProwlLogDetailView: View {
         }
         #endif
         .sheet(isPresented: $isMockEditorPresented) {
+            #if os(macOS)
             ProwlMockEditorView(log: log)
+                .frame(minWidth: 580, minHeight: 560)
+            #else
+            ProwlMockEditorView(log: log)
+            #endif
         }
         .overlay(alignment: .bottom) {
             if let copyToastMessage {
@@ -124,21 +129,21 @@ public struct ProwlLogDetailView: View {
     }
 
     private var tabBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: tabBarSpacing) {
             ForEach(Tab.allCases) { tab in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                         selectedTab = tab
                     }
                 } label: {
                     Text(tab.rawValue)
-                        .font(.system(size: Self.titleFontSize, weight: .semibold))
-                        .foregroundColor(selectedTab == tab ? .primary : .secondary)
+                        .font(.system(size: tabBarFontSize, weight: selectedTab == tab ? .semibold : .medium))
+                        .foregroundStyle(selectedTab == tab ? tabBarSelectedForeground : tabBarUnselectedForeground)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, tabBarVerticalPadding)
                         .background(
                             Capsule()
-                                .fill(selectedTab == tab ? platformSelectedTabBackground : Color.clear)
+                                .fill(selectedTab == tab ? tabBarSelectedBackground : Color.clear)
                         )
                 }
                 .buttonStyle(.plain)
@@ -147,12 +152,80 @@ public struct ProwlLogDetailView: View {
                 .accessibilityAddTraits(selectedTab == tab ? [.isButton, .isSelected] : .isButton)
             }
         }
-        .padding(6)
+        .padding(tabBarContainerPadding)
         .background(
             Capsule()
-                .fill(platformSecondaryBackground)
+                .fill(tabBarTrackBackground)
         )
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 3)
+        .overlay(
+            Capsule()
+                .strokeBorder(tabBarTrackBorder, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
+    private var tabBarSpacing: CGFloat {
+        #if os(macOS)
+        4
+        #else
+        8
+        #endif
+    }
+
+    private var tabBarFontSize: CGFloat {
+        #if os(macOS)
+        13
+        #else
+        Self.titleFontSize
+        #endif
+    }
+
+    private var tabBarVerticalPadding: CGFloat {
+        #if os(macOS)
+        8
+        #else
+        10
+        #endif
+    }
+
+    private var tabBarContainerPadding: CGFloat {
+        #if os(macOS)
+        4
+        #else
+        6
+        #endif
+    }
+
+    private var tabBarSelectedBackground: Color {
+        #if os(macOS)
+        Color.accentColor
+        #else
+        platformSelectedTabBackground
+        #endif
+    }
+
+    private var tabBarSelectedForeground: Color {
+        #if os(macOS)
+        .white
+        #else
+        .primary
+        #endif
+    }
+
+    private var tabBarUnselectedForeground: Color {
+        .secondary
+    }
+
+    private var tabBarTrackBackground: Color {
+        #if os(macOS)
+        Color(NSColor.controlBackgroundColor)
+        #else
+        platformSecondaryBackground
+        #endif
+    }
+
+    private var tabBarTrackBorder: Color {
+        Color.primary.opacity(0.08)
     }
 
     private var detailsNavigationTitle: String {
@@ -763,8 +836,6 @@ public struct ProwlLogDetailView: View {
     private var platformSelectedTabBackground: Color {
         #if os(iOS) || os(visionOS)
         return Color(UIColor.tertiarySystemGroupedBackground)
-        #elseif os(macOS)
-        return Color(NSColor.quaternaryLabelColor).opacity(0.12)
         #else
         return Color.primary.opacity(0.08)
         #endif

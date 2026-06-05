@@ -121,6 +121,39 @@ public enum Prowl {
         ProwlEndpointRateAlerts.resetCounters()
     }
 
+    /// Returns all configured mock rules, oldest first.
+    public static func mockRules() async -> [ProwlMockRule] {
+        await ProwlMocker.shared.allRules()
+    }
+
+    /// Registers a mock rule. Matching requests return the synthetic response.
+    public static func addMockRule(_ rule: ProwlMockRule) async {
+        await ProwlMocker.shared.addRule(rule)
+    }
+
+    /// Updates an existing mock rule by ``ProwlMockRule/id``.
+    public static func updateMockRule(_ rule: ProwlMockRule) async {
+        await ProwlMocker.shared.updateRule(rule)
+    }
+
+    /// Removes a mock rule by ID.
+    public static func removeMockRule(id: UUID) async {
+        await ProwlMocker.shared.removeRule(id: id)
+    }
+
+    /// Removes every mock rule — restores live network responses.
+    public static func removeAllMockRules() async {
+        await ProwlMocker.shared.removeAllRules()
+    }
+
+    /// Enables or disables a mock rule without deleting it.
+    public static func setMockRuleEnabled(id: UUID, enabled: Bool) async {
+        var rules = await ProwlMocker.shared.allRules()
+        guard let index = rules.firstIndex(where: { $0.id == id }) else { return }
+        rules[index].isEnabled = enabled
+        await ProwlMocker.shared.updateRule(rules[index])
+    }
+
     /// Adds a URL substring to the ignore list.
     ///
     /// Convenience for inserting a single entry into ``ignoredURLs``.

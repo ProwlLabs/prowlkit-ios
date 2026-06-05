@@ -51,13 +51,11 @@ struct ProwlSettingsView: View {
         }
         #if os(macOS)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
                     dismiss()
-                } label: {
-                    Image(systemName: "xmark")
                 }
-                .accessibilityLabel("Dismiss")
+                .keyboardShortcut(.cancelAction)
             }
         }
         #endif
@@ -96,6 +94,7 @@ struct ProwlSettingsView: View {
 
             loggingSection
             sensitiveDataSection
+            mocksSection
 
             Section(header: Text("Export & Share")) {
                 exportJSONButton
@@ -180,6 +179,19 @@ struct ProwlSettingsView: View {
                     }
                 }
 
+                macSection("Mocking") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        NavigationLink {
+                            ProwlMocksView()
+                        } label: {
+                            Label("Active Mocks", systemImage: "wand.and.stars")
+                        }
+                        Text("Disable or delete mocks to restore live API responses without restarting the app.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 macSection("Export & Share") {
                     HStack(spacing: 10) {
                         if #available(macOS 13.0, *) {
@@ -254,6 +266,19 @@ struct ProwlSettingsView: View {
         Section(header: Text("Sensitive Data")) {
             Toggle("Mask sensitive data", isOn: $isSensitiveDataMaskingEnabled)
             Text("Default OFF. When ON, Prowl redacts values like Authorization bearer tokens, cookies, private keys, and common secret fields.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var mocksSection: some View {
+        Section(header: Text("Mocking")) {
+            NavigationLink {
+                ProwlMocksView()
+            } label: {
+                Label("Active Mocks", systemImage: "wand.and.stars")
+            }
+            Text("Disable or delete mocks to restore live API responses without restarting the app.")
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
