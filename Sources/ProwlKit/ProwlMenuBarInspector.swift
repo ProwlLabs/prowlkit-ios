@@ -119,7 +119,7 @@ enum ProwlMenuBarInspector {
     }
 
     private static func menuBarIconImage() -> NSImage? {
-        if let iconURL = Bundle.module.url(forResource: "prowl_icon", withExtension: "png"),
+        if let iconURL = Bundle.module.url(forResource: "prowlKit", withExtension: "png"),
            let icon = NSImage(contentsOf: iconURL) {
             icon.size = NSSize(width: 18, height: 18)
             icon.isTemplate = false
