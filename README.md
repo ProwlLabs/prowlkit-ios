@@ -8,10 +8,56 @@
   <a href="https://github.com/ProwlLabs/prowlkit-ios/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/tag/ProwlLabs/prowlkit-ios?label=version&sort=semver"></a>
   <a href="https://github.com/ProwlLabs/prowlkit-ios/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ProwlLabs/prowlkit-ios/ci.yml?branch=main&label=ci"></a>
   <img alt="iOS" src="https://img.shields.io/badge/iOS-15%2B-0A84FF">
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-12%2B-000000">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.2-F05138">
 </p>
 
-Prowl is a lightweight, high-performance network debugging library for the Apple ecosystem (`iOS`, `macOS`, `watchOS`, `tvOS`, `visionOS`) built with native `Foundation` + `SwiftUI` and distributed via Swift Package Manager.
+<p align="center">
+  A lightweight network debugger for the Apple ecosystem — URL interception, sensitive-data masking,<br>
+  and a built-in SwiftUI inspector. Native <code>Foundation</code> + <code>SwiftUI</code>. Swift Package Manager only.
+</p>
+
+## Preview
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>macOS</strong><br>
+      Menu bar · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> · live request log<br><br>
+      <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Prowl.gif" alt="Prowl inspector on macOS — menu bar to request detail" width="100%" />
+    </td>
+    <td align="center" width="50%">
+      <strong>iOS</strong><br>
+      Shake to toggle · search · inspect<br><br>
+      <img src="Sources/ProwlKit/ProwlKit.docc/Resources/ProwlIphone.gif" alt="Prowl inspector on iPhone — shake to open" width="280" />
+    </td>
+  </tr>
+</table>
+
+### macOS
+
+<p align="center">
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Prowl1.png" alt="Prowl macOS inspector with request list and detail tabs" width="720" />
+</p>
+
+<p align="center">
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Prowl2.png" alt="Prowl macOS dashboard with filters and status chips" width="48%" />
+  &nbsp;&nbsp;
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Prowl3.png" alt="Prowl macOS request detail with headers and body" width="48%" />
+</p>
+
+<p align="center">
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/ProwlBadge.png" alt="Prowl menu bar badge" width="28" />
+  &nbsp; Menu bar icon — open the inspector from anywhere on macOS
+</p>
+
+### iOS
+
+<p align="center">
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Shot.png" alt="Prowl iPhone request list" width="300" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="Sources/ProwlKit/ProwlKit.docc/Resources/Shot-2.png" alt="Prowl iPhone request detail" width="300" />
+</p>
 
 ## Features
 
