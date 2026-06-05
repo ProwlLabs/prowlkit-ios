@@ -8,6 +8,8 @@
 Install ProwlKit, start interception once at launch, and open the inspector on
 device or Mac.
 
+![Animated demo of Prowl inspector on macOS, opened from the menu bar.](Prowl.gif)
+
 ## Overview
 
 ProwlKit is designed for debug and internal builds. A single call to
@@ -59,6 +61,8 @@ while already running are ignored.
 | --- | --- |
 | iOS | Shake device |
 | macOS | Menu-bar **Prowl** icon → **Open Inspector** (also **⌘⇧P**) |
+
+![Animated demo of Prowl inspector on iPhone — shake to toggle the inspector.](ProwlIphone.gif)
 
 Programmatic control (both platforms):
 

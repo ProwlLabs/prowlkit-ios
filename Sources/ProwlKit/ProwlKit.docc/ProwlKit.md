@@ -15,6 +15,8 @@
 Debug and inspect network traffic in your apps with URL interception, sensitive-data
 masking, and a built-in SwiftUI inspector.
 
+![Animated demo of Prowl inspector on macOS, capturing and inspecting live requests.](Prowl.gif)
+
 ## Overview
 
 ProwlKit installs a `URLProtocol` at startup and captures every HTTP/HTTPS
@@ -32,6 +34,22 @@ The library ships three SPM products:
 | **ProwlUI** | You embed ``ProwlInspectorView`` yourself and manage ``ProwlStorage`` separately. |
 
 Requires Swift 6.2+. No third-party dependencies.
+
+### Inspector on macOS
+
+![Prowl inspector dashboard on macOS with filters, status chips, and timeline.](Prowl2.png)
+
+![Prowl inspector detail view on macOS with headers and body, ready for export or mocking.](Prowl3.png)
+
+![Prowl menu bar badge icon used to open the inspector from anywhere on macOS.](ProwlBadge.png)
+
+### Inspector on iOS
+
+![Animated demo of Prowl inspector on iPhone, shake to open and inspect live traffic.](ProwlIphone.gif)
+
+![Prowl inspector list view on iPhone, showing captured requests and status colors.](Shot.png)
+
+![Prowl inspector detail sheet on iPhone with request/response breakdown.](Shot-2.png)
 
 ### Quick start
 
