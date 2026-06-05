@@ -200,7 +200,7 @@ struct ProwlMockEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save & Enable") { saveMock() }
-                        .fontWeight(.semibold)
+                        .font(.body.weight(.semibold))
                         .disabled(!canSave)
                 }
             }
@@ -213,7 +213,9 @@ struct ProwlMockEditorView: View {
     #if !os(macOS)
     private var matcherSection: some View {
         Section {
-            LabeledContent("URL Pattern") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("URL Pattern")
+                    .font(.subheadline.weight(.semibold))
                 TextField("api.example.com/users", text: $targetURLPattern)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
@@ -238,7 +240,9 @@ struct ProwlMockEditorView: View {
 
     private var responseSection: some View {
         Section {
-            LabeledContent("Status Code") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Status Code")
+                    .font(.subheadline.weight(.semibold))
                 TextField("500", text: $mockStatusCodeStr)
                     #if os(iOS)
                     .keyboardType(.numberPad)
