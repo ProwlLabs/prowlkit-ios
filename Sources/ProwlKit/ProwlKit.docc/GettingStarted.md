@@ -24,7 +24,7 @@ In `Package.swift`, pin to a release tag:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ProwlKit/prowlkit-ios.git", from: "1.0.0")
+    .package(url: "https://github.com/ProwlLabs/prowlkit-ios.git", from: "1.0.0")
 ]
 ```
 

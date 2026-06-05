@@ -1,12 +1,12 @@
 # ProwlKit
 
 <p align="center">
-  <img src="Sources/ProwlKit/Resources/prowl_icon.png" alt="Prowl Icon" width="220" />
+  <img src="Sources/ProwlKit/Resources/prowlKit.png" alt="Prowl Icon" width="220" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/ProwlKit/prowlkit-ios/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/tag/ProwlKit/prowlkit-ios?label=version&sort=semver"></a>
-  <a href="https://github.com/ProwlKit/prowlkit-ios/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ProwlKit/prowlkit-ios/ci.yml?branch=main&label=ci"></a>
+  <a href="https://github.com/ProwlLabs/prowlkit-ios/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/tag/ProwlLabs/prowlkit-ios?label=version&sort=semver"></a>
+  <a href="https://github.com/ProwlLabs/prowlkit-ios/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ProwlLabs/prowlkit-ios/ci.yml?branch=main&label=ci"></a>
   <img alt="iOS" src="https://img.shields.io/badge/iOS-15%2B-0A84FF">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.2-F05138">
 </p>
@@ -49,7 +49,7 @@ If you use `Package.swift` directly, pin like this:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ProwlKit/prowlkit-ios.git", exact: "<latest-release-tag>")
+    .package(url: "https://github.com/ProwlLabs/prowlkit-ios.git", exact: "<latest-release-tag>")
 ]
 ```
 
