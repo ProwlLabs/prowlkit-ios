@@ -68,5 +68,5 @@ Initial public release of ProwlKit.
 ### Removed
 - `Prowl.version` and the "Check Version" section of the README. Swift Package Manager does not expose tag/version info to library code at runtime, so the hard-coded string was guaranteed to drift from real releases.
 
-[Unreleased]: https://github.com/ProwlKit/prowlkit-ios/compare/1.0.0...HEAD
-[1.0.0]: https://github.com/ProwlKit/prowlkit-ios/releases/tag/1.0.0
+[Unreleased]: https://github.com/ProwlLabs/prowlkit-ios/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/ProwlLabs/prowlkit-ios/releases/tag/1.0.0
