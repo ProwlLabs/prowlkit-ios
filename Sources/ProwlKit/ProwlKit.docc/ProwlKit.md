@@ -13,7 +13,7 @@
 }
 
 Debug and inspect network traffic in your apps with URL interception, sensitive-data
-masking, and a built-in SwiftUI inspector.
+masking, response mocking, request rewriting, and a built-in SwiftUI inspector.
 
 ![Animated demo of Prowl inspector on macOS, capturing and inspecting live requests.](Prowl.gif)
 
@@ -80,7 +80,7 @@ After ``Prowl/start(ignoredURLs:ignoredURLRegexes:)``:
    appended to ``ProwlStorage``.
 3. Optional ``SensitiveDataMasker`` redacts secrets before storage.
 4. ``ProwlInspectorView`` observes storage and renders search, filters, detail
-   tabs, export, and mock editing.
+   tabs, export, mock/rewrite editing, and watch/pin affordances.
 
 Loop prevention and side-effect-free forwarding to the real network stack are
 handled inside the package — your app’s networking behavior stays unchanged.
@@ -90,6 +90,7 @@ handled inside the package — your app’s networking behavior stays unchanged.
 ### Essentials
 
 - <doc:GettingStarted>
+- <doc:PublicAPIReference>
 - <doc:Configuration>
 - <doc:AdvancedFeatures>
 - <doc:HTTPClientIntegrations>
@@ -114,6 +115,29 @@ handled inside the package — your app’s networking behavior stays unchanged.
 - ``ProwlEndpointRateAlerts``
 - ``ProwlEndpointRateAlertRule``
 - ``ProwlEndpointRateAlertRule/Match``
+- ``ProwlSearchParser``
+- ``ProwlSearchQuery``
+
+### Mocking and rewriting
+
+- ``ProwlMockRule``
+- ``ProwlMocker``
+- ``ProwlRequestRewriteRule``
+- ``ProwlRequestRewriter``
+- ``ProwlMockExporter``
+
+### WebSocket and gRPC
+
+- ``ProwlWebSocketEvent``
+- ``ProwlWebSocketLogger``
+- ``ProwlWebSocketMonitor``
+- ``ProwlGrpcLogger``
+
+### Captured data models
+
+- ``RequestTiming``
+- ``MultipartPart``
+- ``NetworkProtocol``
 
 ### Request body capture
 

@@ -80,8 +80,7 @@ enum ProwlMacExporter {
     }
 
     private static func temporaryExportURL(fileName: String) -> URL {
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let sanitized = fileName.isEmpty ? "prowl_export.txt" : fileName
         return tempDir.appendingPathComponent("\(timestamp)_\(sanitized)")

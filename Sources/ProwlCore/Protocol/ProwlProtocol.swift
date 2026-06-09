@@ -12,15 +12,11 @@ import Foundation
 package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
     private static let handledKey = "com.prowlKit.handled"
     private static let requestIDKey = "com.prowlKit.requestID"
-
-    // State guarded by `lock`. The URL Loading System invokes
-    // `startLoading`/`stopLoading` on its own queue while the dataTask
-    // completion arrives on a separate session queue — so we serialize
-    // mutations and gate every `client?` call on the cancelled flag.
     private let lock = NSLock()
     private var cancelled = false
     private var session: URLSession?
     private var dataTask: URLSessionDataTask?
+    private var metricsDelegate: ProwlMetricsSessionDelegate?
 
     package override class func canInit(with request: URLRequest) -> Bool {
         guard ProwlRuntime.isLoggingEnabled else {
@@ -71,8 +67,19 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         Task {
             guard !self.isCancelled() else { return }
 
-            if let mockRule = await ProwlMocker.shared.findMatch(for: proxiedRequest) {
-                let mockURL = proxiedRequest.url ?? URL(string: "https://prowl.mock")!
+            switch await ProwlInterceptPipeline.run(
+                request: proxiedRequest,
+                requestBodyData: requestBodyData,
+                startedAt: startedAt
+            ) {
+            case let .mocked(context, mockRule):
+                let delayMs = min(max(mockRule.responseDelayMillis, 0), 60_000)
+                if delayMs > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+                }
+                guard !self.isCancelled() else { return }
+
+                let mockURL = context.effectiveRequest.url ?? URL(string: "https://prowl.mock")!
                 let mockResponse = HTTPURLResponse(
                     url: mockURL,
                     statusCode: mockRule.mockStatusCode,
@@ -81,68 +88,98 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                 )
 
                 self.complete(
-                    request: proxiedRequest,
-                    requestBodyData: requestBodyData,
-                    startedAt: startedAt,
+                    request: context.effectiveRequest,
+                    requestBodyData: context.requestBodyData,
+                    startedAt: context.startedAt,
                     data: mockRule.mockBody,
                     response: mockResponse,
-                    error: nil
+                    error: nil,
+                    requestWasRewritten: context.requestWasRewritten,
+                    responseWasMocked: true
                 )
-                return
-            }
 
-            let newSession = URLSession(
-                configuration: config,
-                delegate: ProwlRuntime.customSessionDelegate,
-                delegateQueue: nil
-            )
-
-            // Race window: stopLoading may have run before we got here.
-            // Store the session under the lock and bail (invalidating) if so.
-            let stored: Bool = self.lock.withLock {
-                guard !self.cancelled else { return false }
-                self.session = newSession
-                return true
-            }
-            guard stored else {
-                newSession.invalidateAndCancel()
-                return
-            }
-
-            let task = newSession.dataTask(with: proxiedRequest) { [weak self] data, response, error in
-                guard let self else { return }
-                guard !self.isCancelled() else { return }
-                self.complete(
-                    request: proxiedRequest,
-                    requestBodyData: requestBodyData,
-                    startedAt: startedAt,
-                    data: data ?? Data(),
-                    response: response,
-                    error: error
+            case let .network(context):
+                self.forwardToNetwork(
+                    effectiveRequest: context.effectiveRequest,
+                    effectiveBodyData: context.requestBodyData,
+                    startedAt: context.startedAt,
+                    requestWasRewritten: context.requestWasRewritten,
+                    config: config
                 )
             }
-
-            let resumed: Bool = self.lock.withLock {
-                guard !self.cancelled else { return false }
-                self.dataTask = task
-                return true
-            }
-            guard resumed else {
-                task.cancel()
-                newSession.invalidateAndCancel()
-                return
-            }
-            task.resume()
         }
     }
 
+    private func forwardToNetwork(
+        effectiveRequest: URLRequest,
+        effectiveBodyData: Data?,
+        startedAt: Date,
+        requestWasRewritten: Bool,
+        config: URLSessionConfiguration
+    ) {
+        guard !isCancelled() else { return }
+
+        let metricsDelegate = ProwlMetricsSessionDelegate()
+        metricsDelegate.forwardingDelegate = ProwlRuntime.customSessionDelegate
+        let newSession = URLSession(
+            configuration: config,
+            delegate: metricsDelegate,
+            delegateQueue: nil
+        )
+
+        // Race window: stopLoading may have run before we got here.
+        // Store the session under the lock and bail (invalidating) if so.
+        let stored: Bool = lock.prowlWithLock {
+            guard !cancelled else { return false }
+            session = newSession
+            self.metricsDelegate = metricsDelegate
+            return true
+        }
+        guard stored else {
+            newSession.invalidateAndCancel()
+            return
+        }
+
+        let task = newSession.dataTask(with: effectiveRequest)
+        metricsDelegate.registerHandler(for: task) { [weak self] data, response, error in
+            guard let self else { return }
+            guard !self.isCancelled() else { return }
+            let metrics = ProwlTimingStore.take(forTaskID: task.taskIdentifier)
+            self.complete(
+                request: effectiveRequest,
+                requestBodyData: effectiveBodyData,
+                startedAt: startedAt,
+                data: data ?? Data(),
+                response: response,
+                error: error,
+                requestWasRewritten: requestWasRewritten,
+                responseWasMocked: false,
+                timing: metrics.timing,
+                hostIp: metrics.hostIp
+            )
+        }
+
+        let resumed: Bool = lock.prowlWithLock {
+            guard !cancelled else { return false }
+            dataTask = task
+            return true
+        }
+        guard resumed else {
+            task.cancel()
+            newSession.invalidateAndCancel()
+            return
+        }
+        task.resume()
+    }
+
     package override func stopLoading() {
-        let (taskToCancel, sessionToInvalidate): (URLSessionDataTask?, URLSession?) = lock.withLock {
+        let (taskToCancel, sessionToInvalidate): (URLSessionDataTask?, URLSession?) = lock.prowlWithLock {
             cancelled = true
             let taskCopy = dataTask
             let sessionCopy = session
             dataTask = nil
             session = nil
+            metricsDelegate = nil
             return (taskCopy, sessionCopy)
         }
         taskToCancel?.cancel()
@@ -150,7 +187,7 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
     }
 
     private func isCancelled() -> Bool {
-        lock.withLock { cancelled }
+        lock.prowlWithLock { cancelled }
     }
 
     private func complete(
@@ -159,7 +196,11 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         startedAt: Date,
         data: Data,
         response: URLResponse?,
-        error: Error?
+        error: Error?,
+        requestWasRewritten: Bool,
+        responseWasMocked: Bool,
+        timing: RequestTiming? = nil,
+        hostIp: String? = nil
     ) {
         // Re-check under lock to guarantee no client? call after stopLoading.
         // URL Loading System contract: client callbacks are undefined behavior
@@ -199,22 +240,35 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         let maskingEnabled = ProwlRuntime.isSensitiveDataMaskingEnabled
         let requestBodyDataToLog = requestBodyData
             ?? Self.captureRequestBodyPostflight(from: request)
+        let requestEncoding = requestHeaders["Content-Encoding"]
+        let responseEncoding = responseHeaders["Content-Encoding"]
+
+        let decodedRequestData = requestBodyDataToLog.map {
+            ProwlBodyDecoder.decodeIfNeeded($0, contentEncoding: requestEncoding)
+        }
+        var responseDataForLogging = ProwlBodyDecoder.decodeIfNeeded(data, contentEncoding: responseEncoding)
+        if let transformer = ProwlRuntime.responseBodyLoggingTransformer {
+            if let mapped = transformer.responseBodyForLogging(
+                data: responseDataForLogging,
+                contentType: responseContentType,
+                url: requestURL,
+                statusCode: statusCode
+            ) {
+                responseDataForLogging = mapped
+            }
+        }
+
+        let requestMultipart = decodedRequestData.map {
+            ProwlMultipartParser.parse(body: $0, contentType: requestContentType)
+        } ?? []
+        let responseMultipart = ProwlMultipartParser.parse(
+            body: responseDataForLogging,
+            contentType: responseContentType
+        )
 
         Task {
             let runtime = ProwlRuntime.shared
             let snapshot = await runtime.snapshot()
-
-            var responseDataForLogging = data
-            if let transformer = ProwlRuntime.responseBodyLoggingTransformer {
-                if let mapped = transformer.responseBodyForLogging(
-                    data: data,
-                    contentType: responseContentType,
-                    url: requestURL,
-                    statusCode: statusCode
-                ) {
-                    responseDataForLogging = mapped
-                }
-            }
 
             let rateAlertTriggered = ProwlEndpointRateAlertCoordinator.shared.evaluateAndIncrement(
                 method: requestMethod,
@@ -230,8 +284,8 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                 : responseHeaders
 
             let requestBody = maskingEnabled
-                ? snapshot.masker.mask(body: requestBodyDataToLog, contentType: requestContentType)
-                : requestBodyDataToLog.map { NetworkLog.Body(data: $0, contentType: requestContentType) }
+                ? snapshot.masker.mask(body: decodedRequestData, contentType: requestContentType)
+                : decodedRequestData.map { NetworkLog.Body(data: $0, contentType: requestContentType) }
             let responseBody = maskingEnabled
                 ? snapshot.masker.mask(body: responseDataForLogging, contentType: responseContentType)
                 : NetworkLog.Body(data: responseDataForLogging, contentType: responseContentType)
@@ -250,7 +304,14 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
                 timeoutInterval: timeoutInterval,
                 cachePolicy: cachePolicy,
                 errorDescription: errorDescription,
-                endpointRateAlertTriggered: rateAlertTriggered
+                endpointRateAlertTriggered: rateAlertTriggered,
+                hostIp: hostIp,
+                networkProtocol: .http,
+                timing: timing,
+                requestMultipartParts: requestMultipart,
+                responseMultipartParts: responseMultipart,
+                requestRewritten: requestWasRewritten,
+                responseMocked: responseWasMocked
             )
 
             await snapshot.storage.append(log)
@@ -273,7 +334,7 @@ package final class ProwlProtocol: URLProtocol, @unchecked Sendable {
         return readAllBytes(from: copiedStream)
     }
 
-    private static func captureRequestBodyPreflight(from request: URLRequest) -> Data? {
+    package static func captureRequestBodyPreflight(from request: URLRequest) -> Data? {
         if let bestEffort = captureRequestBodyBestEffort(from: request) {
             return bestEffort
         }

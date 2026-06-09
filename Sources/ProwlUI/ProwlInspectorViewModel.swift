@@ -60,26 +60,19 @@ final class ProwlInspectorViewModel: ObservableObject {
     }
 
     var filteredLogs: [NetworkLog] {
-        logs.filter { log in
-            matchesSearch(log) && statusFilter.matches(log.statusCode) && contentTypeFilter.matches(log)
-        }
-    }
-
-    private func matchesSearch(_ log: NetworkLog) -> Bool {
-        guard !searchText.isEmpty else { return true }
-        let query = searchText.lowercased()
-        
-        if (log.url?.absoluteString.lowercased() ?? "").contains(query) { return true }
-        if log.method.lowercased().contains(query) { return true }
-        if let code = log.statusCode, String(code).contains(query) { return true }
-        
-        if log.requestHeaders.values.contains(where: { $0.lowercased().contains(query) }) { return true }
-        if log.responseHeaders.values.contains(where: { $0.lowercased().contains(query) }) { return true }
-        
-        if let resBody = log.responseBody, let text = String(data: resBody.data, encoding: .utf8), text.lowercased().contains(query) { return true }
-        if let reqBody = log.requestBody, let text = String(data: reqBody.data, encoding: .utf8), text.lowercased().contains(query) { return true }
-        
-        return false
+        let searchQuery = ProwlSearchParser.parse(searchText)
+        return logs
+            .filter { log in
+                ProwlSearchParser.matches(log, query: searchQuery)
+                    && statusFilter.matches(log.statusCode)
+                    && contentTypeFilter.matches(log)
+            }
+            .sorted { lhs, rhs in
+                let lhsWatched = ProwlWatchStore.isWatched(lhs)
+                let rhsWatched = ProwlWatchStore.isWatched(rhs)
+                if lhsWatched != rhsWatched { return lhsWatched && !rhsWatched }
+                return lhs.startedAt > rhs.startedAt
+            }
     }
 
     func clearLogs() {
@@ -92,6 +85,7 @@ final class ProwlInspectorViewModel: ObservableObject {
             }
             await targetStorage.clear()
             ProwlEndpointRateAlerts.resetCounters()
+            ProwlSessionPersistence.clear()
         }
     }
 }

@@ -45,14 +45,17 @@ public struct ProwlLogDetailView: View {
     @State private var selectedTab: Tab = .info
     @State private var sharePayload: ProwlExportPayload?
     @State private var isMockEditorPresented = false
+    @State private var isRewriteEditorPresented = false
     @State private var copyToastMessage: String?
     @State private var copyToastToken = UUID()
     @State private var isShowingFullRequestBody = false
     @State private var isShowingFullResponseBody = false
+    @State private var isWatched = false
 
     /// Creates a detail view for one captured log entry.
     public init(log: NetworkLog) {
         self.log = log
+        _isWatched = State(initialValue: ProwlWatchStore.isWatched(log))
     }
 
     public var body: some View {
@@ -101,6 +104,13 @@ public struct ProwlLogDetailView: View {
                     Button("Create Mock") {
                         isMockEditorPresented = true
                     }
+                    Button("Rewrite Request") {
+                        isRewriteEditorPresented = true
+                    }
+                    Button(isWatched ? "Unwatch Endpoint" : "Watch Endpoint") {
+                        ProwlWatchStore.toggleWatch(for: log)
+                        isWatched.toggle()
+                    }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -117,6 +127,14 @@ public struct ProwlLogDetailView: View {
                 .frame(minWidth: 580, minHeight: 560)
             #else
             ProwlMockEditorView(log: log)
+            #endif
+        }
+        .sheet(isPresented: $isRewriteEditorPresented) {
+            #if os(macOS)
+            ProwlRequestRewriteEditorView(log: log)
+                .frame(minWidth: 580, minHeight: 560)
+            #else
+            ProwlRequestRewriteEditorView(log: log)
             #endif
         }
         .overlay(alignment: .bottom) {
@@ -242,6 +260,18 @@ public struct ProwlLogDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             fixedHeightSectionCard(title: "Endpoint") {
                 VStack(alignment: .leading, spacing: 8) {
+                    if log.responseMocked {
+                        infoBanner(
+                            text: "Response was served by a Prowl mock rule (not from the network).",
+                            color: Color(red: 0.69, green: 0.32, blue: 0.87)
+                        )
+                    }
+                    if log.requestRewritten {
+                        infoBanner(
+                            text: "Request was rewritten by a Prowl rule before sending.",
+                            color: Color(red: 0.95, green: 0.57, blue: 0.19)
+                        )
+                    }
                     if log.endpointRateAlertTriggered {
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
@@ -262,6 +292,9 @@ public struct ProwlLogDetailView: View {
                         value: log.url?.absoluteString ?? "-",
                         toastMessage: "URL copied"
                     )
+                    if let hostIp = log.hostIp, !hostIp.isEmpty {
+                        labeledValue(ProwlStrings.hostIP, value: hostIp, toastMessage: "Host IP copied")
+                    }
                     Divider()
                     HStack(spacing: 10) {
                         capsuleTag(
@@ -304,9 +337,17 @@ public struct ProwlLogDetailView: View {
                         )
                         labeledValue(
                             "Time interval",
-                            value: String(Float(log.duration)),
+                            value: String(format: "%.0f ms", log.duration * 1000),
                             toastMessage: "Time interval copied"
                         )
+                    }
+                    if let timing = log.timing {
+                        Divider()
+                        timingRow(ProwlStrings.timingDNS, timing.dnsMillis)
+                        timingRow(ProwlStrings.timingConnect, timing.connectMillis)
+                        timingRow(ProwlStrings.timingTLS, timing.secureConnectMillis)
+                        timingRow(ProwlStrings.timingRequest, timing.requestBodyMillis)
+                        timingRow(ProwlStrings.timingResponse, timing.responseBodyMillis)
                     }
                     labeledValue(
                         "Timeout",
@@ -355,6 +396,7 @@ public struct ProwlLogDetailView: View {
                     fullBodyButtonTitle: "Show request body"
                 )
             }
+            multipartSection(log.requestMultipartParts)
         }
     }
 
@@ -374,6 +416,7 @@ public struct ProwlLogDetailView: View {
                     fullBodyButtonTitle: "Show response body"
                 )
             }
+            multipartSection(log.responseMultipartParts)
         }
     }
 
@@ -424,6 +467,60 @@ public struct ProwlLogDetailView: View {
     }
 
     @ViewBuilder
+    private func infoBanner(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: Self.contentFontSize))
+            .foregroundColor(.primary)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color.opacity(0.12))
+            )
+    }
+
+    @ViewBuilder
+    private func timingRow(_ label: String, _ millis: Int?) -> some View {
+        if let millis {
+            labeledValue(label, value: "\(millis) ms", toastMessage: "\(label) copied")
+        }
+    }
+
+    @ViewBuilder
+    private func multipartSection(_ parts: [MultipartPart]) -> some View {
+        if !parts.isEmpty {
+            fixedHeightSectionCard(title: ProwlStrings.multipartParts) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(parts) { part in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(part.name ?? part.fileName ?? "part")
+                                .font(.caption.weight(.semibold))
+                            if let fileName = part.fileName {
+                                Text("file: \(fileName)")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let contentType = part.contentType {
+                                Text(contentType)
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("\(part.sizeBytes) bytes")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            if let preview = part.textPreview {
+                                Text(preview)
+                                    .font(.caption2.monospaced())
+                                    .lineLimit(4)
+                            }
+                        }
+                        if part.id != parts.last?.id { Divider() }
+                    }
+                }
+            }
+        }
+    }
+
     private func labeledValue(_ label: String, value: String, toastMessage: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
@@ -502,6 +599,34 @@ public struct ProwlLogDetailView: View {
     }
 
     @ViewBuilder
+    private func bodyContentView(text: String, body: NetworkLog.Body, toastMessage: String) -> some View {
+        Group {
+            if ProwlJSONSyntaxHighlighter.looksLikeJSON(text, contentType: body.contentType) {
+                ProwlJSONTreeView(json: text)
+            } else {
+                let highlighted = ProwlJSONSyntaxHighlighter.highlight(text, contentType: body.contentType)
+                Text(highlighted)
+                    .font(.system(size: Self.contentFontSize, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+        }
+        .onLongPressGesture(minimumDuration: 0.4) {
+            copyToPasteboard(text, toastMessage: toastMessage)
+        }
+        .contextMenu {
+            Button("Copy") {
+                copyToPasteboard(text, toastMessage: toastMessage)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(platformBodyBackground)
+        )
+    }
+
+    @ViewBuilder
     private func bodyView(
         _ body: NetworkLog.Body?,
         emptyText: String,
@@ -539,24 +664,7 @@ public struct ProwlLogDetailView: View {
                 )
             } else {
                 if applyJSONHighlighting, let body {
-                    let highlighted = ProwlJSONSyntaxHighlighter.highlight(text, contentType: body.contentType)
-                    Text(highlighted)
-                        .font(.system(size: Self.contentFontSize, design: .monospaced))
-                        .textSelection(.enabled)
-                    .onLongPressGesture(minimumDuration: 0.4) {
-                        copyToPasteboard(text, toastMessage: toastMessage)
-                    }
-                    .contextMenu {
-                        Button("Copy") {
-                            copyToPasteboard(text, toastMessage: toastMessage)
-                        }
-                    }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(platformBodyBackground)
-                        )
+                    bodyContentView(text: text, body: body, toastMessage: toastMessage)
                 } else {
                     Text(text)
                         .font(.system(size: Self.contentFontSize, design: .monospaced))

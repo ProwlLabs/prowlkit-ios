@@ -16,6 +16,7 @@ struct ProwlMockEditorView: View {
     @State private var targetURLPattern: String
     @State private var targetMethod: String
     @State private var mockStatusCodeStr: String
+    @State private var responseDelayMillisStr: String
     @State private var mockBodyJSONString: String
 
     private static let methods = ["ANY", "GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -25,7 +26,18 @@ struct ProwlMockEditorView: View {
         _viewModel = StateObject(wrappedValue: vm)
         _targetURLPattern = State(initialValue: vm.initialURLPattern)
         _targetMethod = State(initialValue: vm.initialMethod)
-        _mockStatusCodeStr = State(initialValue: "500")
+        _mockStatusCodeStr = State(initialValue: vm.initialStatusCode)
+        _responseDelayMillisStr = State(initialValue: vm.initialDelayMillis)
+        _mockBodyJSONString = State(initialValue: vm.initialBodyJSON)
+    }
+
+    init(rule: ProwlMockRule) {
+        let vm = ProwlMockEditorViewModel(rule: rule)
+        _viewModel = StateObject(wrappedValue: vm)
+        _targetURLPattern = State(initialValue: vm.initialURLPattern)
+        _targetMethod = State(initialValue: vm.initialMethod)
+        _mockStatusCodeStr = State(initialValue: vm.initialStatusCode)
+        _responseDelayMillisStr = State(initialValue: vm.initialDelayMillis)
         _mockBodyJSONString = State(initialValue: vm.initialBodyJSON)
     }
 
@@ -67,7 +79,7 @@ struct ProwlMockEditorView: View {
     private var macHeader: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Mock Endpoint")
+                Text(viewModel.isEditing ? "Edit Mock Rule" : "Mock Endpoint")
                     .font(.title3.weight(.semibold))
                 if let sourceURL = viewModel.sourceURL {
                     Text(sourceURL)
@@ -125,6 +137,14 @@ struct ProwlMockEditorView: View {
 
                     statusPresetBar
                 }
+            }
+            mockFieldRow(label: "Response Delay (ms)", hint: "0–60000. Simulates network latency before returning the mock.") {
+                TextField("", text: $responseDelayMillisStr, prompt: Text("0"))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
             }
         }
     }
@@ -192,7 +212,7 @@ struct ProwlMockEditorView: View {
                 responseSection
                 bodySection
             }
-            .navigationTitle("Mock Endpoint")
+            .navigationTitle(viewModel.isEditing ? "Edit Mock Rule" : "Mock Endpoint")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -250,8 +270,19 @@ struct ProwlMockEditorView: View {
                     .frame(maxWidth: 80)
             }
             statusPresetBar
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Response Delay (ms)")
+                    .font(.subheadline.weight(.semibold))
+                TextField("0", text: $responseDelayMillisStr)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .frame(maxWidth: 100)
+            }
         } header: {
             Text("Response")
+        } footer: {
+            Text("Delay simulates latency (0–60000 ms) before the mock response is returned.")
         }
     }
 
@@ -315,6 +346,7 @@ struct ProwlMockEditorView: View {
             urlPattern: targetURLPattern,
             method: targetMethod,
             statusCodeStr: mockStatusCodeStr,
+            delayMillisStr: responseDelayMillisStr,
             bodyJSON: mockBodyJSONString
         ))
     }

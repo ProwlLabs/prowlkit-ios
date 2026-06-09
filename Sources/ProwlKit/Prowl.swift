@@ -131,9 +131,22 @@ public enum Prowl {
         await ProwlMocker.shared.addRule(rule)
     }
 
-    /// Updates an existing mock rule by ``ProwlMockRule/id``.
+    /// Updates an existing mock rule by ``ProwlMockRule/id``, or overwrites when URL + method match.
     public static func updateMockRule(_ rule: ProwlMockRule) async {
-        await ProwlMocker.shared.updateRule(rule)
+        await ProwlMocker.shared.saveRule(rule)
+    }
+
+    /// Saves a mock rule (upsert by id or URL pattern + method).
+    public static func saveMockRule(_ rule: ProwlMockRule) async {
+        await ProwlMocker.shared.saveRule(rule)
+    }
+
+    public static func moveMockRuleUp(id: UUID) async {
+        await ProwlMocker.shared.moveRuleUp(id: id)
+    }
+
+    public static func moveMockRuleDown(id: UUID) async {
+        await ProwlMocker.shared.moveRuleDown(id: id)
     }
 
     /// Removes a mock rule by ID.
@@ -151,7 +164,84 @@ public enum Prowl {
         var rules = await ProwlMocker.shared.allRules()
         guard let index = rules.firstIndex(where: { $0.id == id }) else { return }
         rules[index].isEnabled = enabled
-        await ProwlMocker.shared.updateRule(rules[index])
+        await ProwlMocker.shared.saveRule(rules[index])
+    }
+
+    // MARK: - Request rewrite rules
+
+    public static func requestRewriteRules() async -> [ProwlRequestRewriteRule] {
+        await ProwlRequestRewriter.shared.allRules()
+    }
+
+    public static func addRequestRewriteRule(_ rule: ProwlRequestRewriteRule) async {
+        await ProwlRequestRewriter.shared.addRule(rule)
+    }
+
+    public static func updateRequestRewriteRule(_ rule: ProwlRequestRewriteRule) async {
+        await ProwlRequestRewriter.shared.saveRule(rule)
+    }
+
+    public static func saveRequestRewriteRule(_ rule: ProwlRequestRewriteRule) async {
+        await ProwlRequestRewriter.shared.saveRule(rule)
+    }
+
+    public static func removeRequestRewriteRule(id: UUID) async {
+        await ProwlRequestRewriter.shared.removeRule(id: id)
+    }
+
+    public static func removeAllRequestRewriteRules() async {
+        await ProwlRequestRewriter.shared.removeAllRules()
+    }
+
+    /// Whether captured logs are persisted across app launches.
+    public static var isSessionPersistenceEnabled: Bool {
+        get { ProwlSessionPersistence.isEnabled }
+        set { ProwlSessionPersistence.isEnabled = newValue }
+    }
+
+    /// Logs a gRPC call into the inspector (manual integration hook).
+    public static func logGrpcCall(
+        fullMethodName: String,
+        methodType: String,
+        requestBody: Data? = nil,
+        responseBody: Data? = nil,
+        grpcStatusCode: Int,
+        errorDescription: String? = nil,
+        startedAt: Date = Date(),
+        duration: TimeInterval = 0
+    ) async {
+        await ProwlGrpcLogger.logCall(
+            fullMethodName: fullMethodName,
+            methodType: methodType,
+            requestBody: requestBody,
+            responseBody: responseBody,
+            statusCode: ProwlGrpcLogger.mapGrpcStatusToHTTP(grpcStatusCode),
+            errorDescription: errorDescription,
+            startedAt: startedAt,
+            duration: duration
+        )
+    }
+
+    /// Logs a WebSocket lifecycle event into the inspector.
+    public static func logWebSocketEvent(
+        url: URL?,
+        event: ProwlWebSocketEvent,
+        connectionID: UUID = UUID(),
+        startedAt: Date = Date()
+    ) async {
+        await ProwlWebSocketLogger.log(
+            connectionID: connectionID,
+            url: url,
+            event: event,
+            startedAt: startedAt
+        )
+    }
+
+    public static func setRequestRewriteRuleEnabled(id: UUID, enabled: Bool) async {
+        var rules = await ProwlRequestRewriter.shared.allRules()
+        guard let index = rules.firstIndex(where: { $0.id == id }) else { return }
+        rules[index].isEnabled = enabled
+        await ProwlRequestRewriter.shared.saveRule(rules[index])
     }
 
     /// Adds a URL substring to the ignore list.
@@ -211,10 +301,27 @@ public enum Prowl {
         ignoredURLs.forEach { ignoreURL($0) }
         ignoredURLRegexes.forEach { ignoreURL(regex: $0) }
 
+        Task {
+            await ProwlMockPersistence.restore(into: ProwlMocker.shared)
+            await ProwlRequestRewritePersistence.restore(into: ProwlRequestRewriter.shared)
+            let storage = await ProwlRuntime.shared.currentStorage()
+            await ProwlSessionPersistence.restoreIfEmpty(into: storage)
+        }
+
+        ProwlStorage.onLogsChanged = { logs in
+            ProwlSessionPersistence.persist(logs)
+            #if os(iOS)
+            Task { @MainActor in
+                ProwlNotificationService.updateRequestCount(logs.count)
+            }
+            #endif
+        }
+
         ProwlRuntime.installRequestBodySnapshotSupportIfNeeded()
         URLProtocol.registerClass(ProwlProtocol.self)
         #if os(iOS)
             ProwlAutoInspector.enable()
+            ProwlNotificationService.install()
         #elseif os(macOS)
             ProwlMenuBarInspector.enable()
         #endif
@@ -232,6 +339,7 @@ public enum Prowl {
         URLProtocol.unregisterClass(ProwlProtocol.self)
         #if os(iOS)
             ProwlAutoInspector.disable()
+            ProwlNotificationService.uninstall()
         #elseif os(macOS)
             ProwlMenuBarInspector.disable()
         #endif

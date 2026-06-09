@@ -39,6 +39,7 @@ enum ProwlAutoInspector {
         guard observer == nil else { return }
         UIApplication.shared.applicationSupportsShakeToEdit = true
         ProwlShakeMonitor.installIfNeeded()
+        ProwlFloatingBubble.install()
         appActiveObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -69,6 +70,12 @@ enum ProwlAutoInspector {
             self.appActiveObserver = nil
         }
         resetPendingPresentationRetry()
+        ProwlFloatingBubble.uninstall()
+    }
+
+    /// Whether the inspector sheet is currently presented.
+    static var isInspectorVisible: Bool {
+        presentedInspectorController() != nil
     }
 
     static func show() {
@@ -82,6 +89,7 @@ enum ProwlAutoInspector {
         inspector.dismiss(animated: true) {
             Task { @MainActor in
                 isTransitioningInspector = false
+                ProwlFloatingBubble.refresh()
             }
         }
     }
@@ -131,6 +139,7 @@ enum ProwlAutoInspector {
         let inspectorView = ProwlInspectorView()
         let hostController = ProwlInspectorHostingController(rootView: inspectorView)
         isTransitioningInspector = true
+        ProwlFloatingBubble.hideWhileInspectorVisible()
         topController.present(hostController, animated: true) {
             Task { @MainActor in
                 isTransitioningInspector = false

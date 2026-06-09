@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "ProwlKit",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v15),
         .macOS(.v12),
@@ -46,7 +47,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ProwlTests",
-            dependencies: ["ProwlKit"]
+            dependencies: ["ProwlKit", "ProwlUI"]
         ),
     ]
 )

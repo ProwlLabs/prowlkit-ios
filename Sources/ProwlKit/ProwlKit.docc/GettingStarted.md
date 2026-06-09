@@ -110,11 +110,13 @@ Prowl.stop()
 
 ## Next steps
 
+- <doc:PublicAPIReference> — complete ``Prowl`` API with copy-paste examples.
 - <doc:Configuration> — custom storage, masking, and pre-start setup.
-- <doc:AdvancedFeatures> — rate alerts, response transforms, certificate pinning.
+- <doc:AdvancedFeatures> — mocking, rewrite, rate alerts, WebSocket/gRPC, export.
 - <doc:HTTPClientIntegrations> — streamed bodies, Alamofire, and Moya.
 
 ## See Also
 
+- <doc:PublicAPIReference>
 - ``Prowl``
 - ``ProwlInspectorView``

@@ -16,20 +16,31 @@ struct ProwlSettingsView: View {
     @ObservedObject var viewModel: ProwlInspectorViewModel
     var onExportText: () -> Void
     var onExportCURL: () -> Void
+    var onExportHAR: () -> Void
     
     @Environment(\.dismiss) private var dismiss
     @AppStorage("prowl_color_scheme") private var themeRaw: Int = 0
     @State private var isLoggingEnabled = true
     @State private var isSensitiveDataMaskingEnabled = false
+    @AppStorage("prowl_floating_bubble") private var floatingBubbleEnabled = false
+    @AppStorage("prowl_persist_sessions") private var persistSessions = false
+    #if os(iOS)
+    @AppStorage("prowl_debug_notification") private var debugNotification = false
+    #endif
+    @State private var mockImportText = ""
+    @State private var isMockImportPresented = false
+    @State private var mockExportPayload: ProwlExportPayload?
     
     init(
         viewModel: ProwlInspectorViewModel,
         onExportText: @escaping () -> Void,
-        onExportCURL: @escaping () -> Void
+        onExportCURL: @escaping () -> Void,
+        onExportHAR: @escaping () -> Void = {}
     ) {
         self.viewModel = viewModel
         self.onExportText = onExportText
         self.onExportCURL = onExportCURL
+        self.onExportHAR = onExportHAR
         _isLoggingEnabled = State(initialValue: ProwlRuntime.isLoggingEnabled)
         _isSensitiveDataMaskingEnabled = State(initialValue: ProwlRuntime.isSensitiveDataMaskingEnabled)
     }
@@ -49,6 +60,24 @@ struct ProwlSettingsView: View {
         .onChange(of: isSensitiveDataMaskingEnabled) { isEnabled in
             ProwlRuntime.isSensitiveDataMaskingEnabled = isEnabled
         }
+        #if os(iOS)
+        .onChange(of: debugNotification) { enabled in
+            NotificationCenter.default.post(
+                name: Notification.Name("prowlDebugNotificationPreferenceDidChange"),
+                object: enabled
+            )
+        }
+        #endif
+        .sheet(isPresented: $isMockImportPresented) {
+            mockImportSheet
+        }
+        .sheet(item: $mockExportPayload) { payload in
+            #if os(iOS)
+            ProwlActivityView(activityItems: [payload.content])
+            #else
+            EmptyView()
+            #endif
+        }
         #if os(macOS)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -64,9 +93,7 @@ struct ProwlSettingsView: View {
     private var defaultSettingsLayout: some View {
         Form {
             Section(header: Text("Statistics")) {
-                labeledStatRow(title: "Total Requests", value: "\(viewModel.logs.count)")
-                labeledStatRow(title: "Success Rate (2xx)", value: successRateString)
-                labeledStatRow(title: "Total Errors (4xx/5xx)", value: "\(errorCount)")
+                ProwlStatsCharts(stats: ProwlRequestStatsCalculator.compute(from: viewModel.logs))
             }
 
             Section(header: Text("Filters")) {
@@ -94,11 +121,17 @@ struct ProwlSettingsView: View {
 
             loggingSection
             sensitiveDataSection
+            sessionPersistenceSection
             mocksSection
+            #if os(iOS)
+            floatingBubbleSection
+            debugNotificationSection
+            #endif
 
             Section(header: Text("Export & Share")) {
                 exportJSONButton
                 exportCURLButton
+                exportHARButton
                 Text("Export data for debugging and issue reporting.")
                     .font(.footnote)
                     .foregroundColor(.secondary)
@@ -253,6 +286,23 @@ struct ProwlSettingsView: View {
         return String(format: "%.1f%%", percentage)
     }
 
+    #if os(iOS)
+    private var floatingBubbleSection: some View {
+        Section(header: Text("Inspector")) {
+            Toggle("Floating debug bubble", isOn: $floatingBubbleEnabled)
+            Text("Draggable shortcut to open Prowl on any screen. Shake still works when the bubble is off.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+        .onChange(of: floatingBubbleEnabled) { _ in
+            NotificationCenter.default.post(
+                name: Notification.Name("prowlFloatingBubblePreferenceDidChange"),
+                object: nil
+            )
+        }
+    }
+    #endif
+
     private var loggingSection: some View {
         Section(header: Text("Logging")) {
             Toggle("Enable request logging", isOn: $isLoggingEnabled)
@@ -278,11 +328,70 @@ struct ProwlSettingsView: View {
             } label: {
                 Label("Active Mocks", systemImage: "wand.and.stars")
             }
+            Button(ProwlStrings.exportMocks) {
+                Task {
+                    let rules = await ProwlMocker.shared.allRules()
+                    mockExportPayload = ProwlExportPayload(content: ProwlMockExporter.exportRules(rules))
+                }
+            }
+            Button(ProwlStrings.importMocks) {
+                isMockImportPresented = true
+            }
             Text("Disable or delete mocks to restore live API responses without restarting the app.")
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
     }
+
+    private var sessionPersistenceSection: some View {
+        Section(header: Text("Session")) {
+            Toggle(ProwlStrings.persistSessions, isOn: $persistSessions)
+            Text(ProwlStrings.persistSessionsHint)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var mockImportSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Paste mock rules JSON")) {
+                    TextEditor(text: $mockImportText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 200)
+                }
+            }
+            .navigationTitle(ProwlStrings.importMocks)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isMockImportPresented = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Import") {
+                        let rules = ProwlMockExporter.importRules(mockImportText)
+                        Task {
+                            for rule in rules {
+                                await ProwlMocker.shared.saveRule(rule)
+                            }
+                        }
+                        mockImportText = ""
+                        isMockImportPresented = false
+                    }
+                }
+            }
+        }
+    }
+
+    #if os(iOS)
+    private var debugNotificationSection: some View {
+        Section(header: Text("Inspector")) {
+            Toggle(ProwlStrings.debugNotification, isOn: $debugNotification)
+            Text(ProwlStrings.debugNotificationHint)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+    }
+    #endif
 
     private var errorCount: Int {
         viewModel.logs.filter { ($0.statusCode ?? 0) >= 400 || $0.errorDescription != nil }.count
@@ -370,6 +479,27 @@ struct ProwlSettingsView: View {
                 subtitle: "Replay requests quickly in terminal",
                 systemImage: "terminal",
                 tint: .orange
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var exportHARButton: some View {
+        Button(role: .none, action: {
+            #if os(macOS)
+            onExportHAR()
+            #else
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                onExportHAR()
+            }
+            #endif
+        }) {
+            exportActionLabel(
+                title: ProwlStrings.exportHAR,
+                subtitle: "HAR 1.2 for DevTools",
+                systemImage: "doc.text",
+                tint: .purple
             )
         }
         .buttonStyle(.plain)

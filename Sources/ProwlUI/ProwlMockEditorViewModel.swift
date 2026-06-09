@@ -2,15 +2,12 @@
 //  ProwlMockEditorViewModel.swift
 //  Prowl
 //
-//  Created by Elmee on 16/04/26.
-//  Copyright © 2026 Elmee. All rights reserved.
-//
 
 import Foundation
 import ProwlCore
 
 enum ProwlMockEditorIntent {
-    case save(urlPattern: String, method: String, statusCodeStr: String, bodyJSON: String)
+    case save(urlPattern: String, method: String, statusCodeStr: String, delayMillisStr: String, bodyJSON: String)
     case cancel
 }
 
@@ -20,8 +17,12 @@ final class ProwlMockEditorViewModel: ObservableObject {
 
     let initialURLPattern: String
     let initialMethod: String
+    let initialStatusCode: String
+    let initialDelayMillis: String
     let initialBodyJSON: String
     let sourceURL: String?
+    let existingRuleID: UUID?
+    let isEditing: Bool
 
     @Published private(set) var isSaved = false
 
@@ -29,32 +30,62 @@ final class ProwlMockEditorViewModel: ObservableObject {
         sourceURL = log.url?.absoluteString
         initialURLPattern = Self.suggestedPattern(for: log.url)
         initialMethod = log.method.uppercased()
+        initialStatusCode = String(log.statusCode ?? 200)
+        initialDelayMillis = "0"
         initialBodyJSON = Self.suggestedBody(from: log.responseBody)
+        existingRuleID = nil
+        isEditing = false
+    }
+
+    init(rule: ProwlMockRule) {
+        sourceURL = nil
+        initialURLPattern = rule.targetURLPattern
+        initialMethod = rule.targetMethod
+        initialStatusCode = String(rule.mockStatusCode)
+        initialDelayMillis = String(rule.responseDelayMillis)
+        initialBodyJSON = rule.mockBodyText
+        existingRuleID = rule.id
+        isEditing = true
     }
 
     func handle(_ intent: ProwlMockEditorIntent) {
         switch intent {
-        case let .save(urlPattern, method, statusCodeStr, bodyJSON):
-            save(urlPattern: urlPattern, method: method, statusCodeStr: statusCodeStr, bodyJSON: bodyJSON)
+        case let .save(urlPattern, method, statusCodeStr, delayMillisStr, bodyJSON):
+            save(
+                urlPattern: urlPattern,
+                method: method,
+                statusCodeStr: statusCodeStr,
+                delayMillisStr: delayMillisStr,
+                bodyJSON: bodyJSON
+            )
         case .cancel:
             break
         }
     }
 
-    private func save(urlPattern: String, method: String, statusCodeStr: String, bodyJSON: String) {
+    private func save(
+        urlPattern: String,
+        method: String,
+        statusCodeStr: String,
+        delayMillisStr: String,
+        bodyJSON: String
+    ) {
         let code = Int(statusCodeStr) ?? 200
+        let delay = min(max(Int(delayMillisStr) ?? 0, 0), 60_000)
         let data = bodyJSON.data(using: .utf8) ?? Data()
 
         let rule = ProwlMockRule(
+            id: existingRuleID ?? UUID(),
             targetURLPattern: urlPattern.trimmingCharacters(in: .whitespacesAndNewlines),
             targetMethod: method,
             mockStatusCode: code,
             mockBody: data,
+            responseDelayMillis: delay,
             isEnabled: true
         )
 
         Task {
-            await ProwlMocker.shared.addRule(rule)
+            await ProwlMocker.shared.saveRule(rule)
             isSaved = true
         }
     }

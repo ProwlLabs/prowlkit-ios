@@ -2,46 +2,90 @@
 //  ProwlMocksViewModel.swift
 //  Prowl
 //
-//  Created by Elmee on 05/06/26.
-//  Copyright © 2026 Elmee. All rights reserved.
-//
 
 import Foundation
 import ProwlCore
 
 @MainActor
 public final class ProwlMocksViewModel: ObservableObject {
-    @Published public private(set) var rules: [ProwlMockRule] = []
+    @Published public private(set) var mockRules: [ProwlMockRule] = []
+    @Published public private(set) var rewriteRules: [ProwlRequestRewriteRule] = []
     @Published public private(set) var isLoading = false
 
     public init() {}
 
     public func load() async {
         isLoading = true
-        rules = await ProwlMocker.shared.allRules()
+        await reloadMocks()
+        await reloadRewrites()
         isLoading = false
     }
 
-    public func toggleEnabled(_ rule: ProwlMockRule) {
+    public func reloadMocks() async {
+        mockRules = await ProwlMocker.shared.allRules()
+    }
+
+    public func reloadRewrites() async {
+        rewriteRules = await ProwlRequestRewriter.shared.allRules()
+    }
+
+    public func toggleMockEnabled(_ rule: ProwlMockRule) {
         Task {
             var updated = rule
             updated.isEnabled = !rule.isEnabled
-            await ProwlMocker.shared.updateRule(updated)
-            await load()
+            await ProwlMocker.shared.saveRule(updated)
+            await reloadMocks()
         }
     }
 
-    public func delete(_ rule: ProwlMockRule) {
+    public func toggleRewriteEnabled(_ rule: ProwlRequestRewriteRule) {
+        Task {
+            var updated = rule
+            updated.isEnabled = !rule.isEnabled
+            await ProwlRequestRewriter.shared.saveRule(updated)
+            await reloadRewrites()
+        }
+    }
+
+    public func deleteMock(_ rule: ProwlMockRule) {
         Task {
             await ProwlMocker.shared.removeRule(id: rule.id)
-            await load()
+            await reloadMocks()
         }
     }
 
-    public func deleteAll() {
+    public func deleteRewrite(_ rule: ProwlRequestRewriteRule) {
+        Task {
+            await ProwlRequestRewriter.shared.removeRule(id: rule.id)
+            await reloadRewrites()
+        }
+    }
+
+    public func deleteAllMocks() {
         Task {
             await ProwlMocker.shared.removeAllRules()
-            await load()
+            await reloadMocks()
+        }
+    }
+
+    public func deleteAllRewrites() {
+        Task {
+            await ProwlRequestRewriter.shared.removeAllRules()
+            await reloadRewrites()
+        }
+    }
+
+    public func moveMockUp(_ rule: ProwlMockRule) {
+        Task {
+            await ProwlMocker.shared.moveRuleUp(id: rule.id)
+            await reloadMocks()
+        }
+    }
+
+    public func moveMockDown(_ rule: ProwlMockRule) {
+        Task {
+            await ProwlMocker.shared.moveRuleDown(id: rule.id)
+            await reloadMocks()
         }
     }
 }

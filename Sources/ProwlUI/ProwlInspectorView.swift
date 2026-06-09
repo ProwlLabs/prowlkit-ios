@@ -78,7 +78,7 @@ public struct ProwlInspectorView: View {
         } detail: {
             detailPane
         }
-        .searchable(text: $viewModel.searchText, prompt: "Search URL")
+        .searchable(text: $viewModel.searchText, prompt: ProwlStrings.searchPrompt)
     }
 
     private var macLegacyInspector: some View {
@@ -87,7 +87,7 @@ public struct ProwlInspectorView: View {
                 .frame(minWidth: 340, idealWidth: 400, maxWidth: 500)
             detailPane
         }
-        .searchable(text: $viewModel.searchText, prompt: "Search URL")
+        .searchable(text: $viewModel.searchText, prompt: ProwlStrings.searchPrompt)
     }
 
     private var macSidebar: some View {
@@ -101,7 +101,8 @@ public struct ProwlInspectorView: View {
         let settings = ProwlSettingsView(
             viewModel: viewModel,
             onExportText: { exportLogs(as: .formattedText) },
-            onExportCURL: { exportLogs(as: .curlCommands) }
+            onExportCURL: { exportLogs(as: .curlCommands) },
+            onExportHAR: { exportLogs(as: .har) }
         )
         if #available(macOS 13.0, *) {
             NavigationStack { settings }
@@ -122,10 +123,10 @@ public struct ProwlInspectorView: View {
                 .searchable(
                     text: $viewModel.searchText,
                     placement: .navigationBarDrawer(displayMode: .automatic),
-                    prompt: "Search URL"
+                    prompt: ProwlStrings.searchPrompt
                 )
                 #else
-                .searchable(text: $viewModel.searchText, prompt: "Search URL")
+                .searchable(text: $viewModel.searchText, prompt: ProwlStrings.searchPrompt)
                 #endif
                 .toolbar { toolbarContent }
             #if os(visionOS)
@@ -368,7 +369,8 @@ public struct ProwlInspectorView: View {
             NavigationLink(destination: ProwlSettingsView(
                 viewModel: viewModel,
                 onExportText: { exportLogs(as: .formattedText) },
-                onExportCURL: { exportLogs(as: .curlCommands) }
+                onExportCURL: { exportLogs(as: .curlCommands) },
+                onExportHAR: { exportLogs(as: .har) }
             )) {
                 Image(systemName: "gearshape")
             }
@@ -378,7 +380,8 @@ public struct ProwlInspectorView: View {
             NavigationLink(destination: ProwlSettingsView(
                 viewModel: viewModel,
                 onExportText: { exportLogs(as: .formattedText) },
-                onExportCURL: { exportLogs(as: .curlCommands) }
+                onExportCURL: { exportLogs(as: .curlCommands) },
+                onExportHAR: { exportLogs(as: .har) }
             )) {
                 Image(systemName: "gearshape")
             }

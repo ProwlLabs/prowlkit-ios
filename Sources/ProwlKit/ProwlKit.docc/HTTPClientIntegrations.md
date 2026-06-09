@@ -90,6 +90,7 @@ The plugin captures `httpBody` or `Task`-derived `.requestData` /
 
 ## See Also
 
+- <doc:PublicAPIReference>
 - ``ProwlRequestBodySnapshot``
 - ``ProwlRequestBodySnapshot/attach(_:to:)``
 - <doc:GettingStarted>

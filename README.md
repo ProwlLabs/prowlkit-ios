@@ -65,13 +65,18 @@
 - Runtime logging toggle (pause/resume interception)
 - Thread-safe log storage via `actor`
 - FIFO log buffer (default `200`)
+- Session persistence across app launches (optional)
 - Built-in sensitive data masking (toggleable at runtime)
-- SwiftUI inspector dashboard + detail tabs
-- Real-time search and status filtering
+- Response mocking with delay, reorder, and JSON import/export
+- Request rewrite rules (URL, headers, body)
+- SwiftUI inspector dashboard + detail tabs (timing, host IP, multipart)
+- Real-time search with syntax (`method:`, `status:`, `host:`) and watch/pin
 - URL ignore rules via substring and regex pattern
-- Export logs as formatted text or cURL commands
+- Endpoint rate alerts
+- Export logs as formatted text, cURL, or HAR 1.2
+- WebSocket and gRPC manual logging hooks
 - Activation shortcuts:
-  - iOS shake gesture
+  - iOS shake gesture (+ optional debug notification)
   - macOS menu bar popover + `Command + Shift + P`
 
 ## Install (SPM)
@@ -86,7 +91,7 @@ In Xcode:
    - `Exact Version` (locked)
 4. Add the `Prowl` product to your app target
 
-### Version Strategy Example
+**Version strategy**
 
 - **Stable updates (recommended):** `Up to Next Major` from the latest release tag
 - **Strict lock for CI/release:** `Exact` to a specific release tag
@@ -99,11 +104,15 @@ dependencies: [
 ]
 ```
 
-## Quick Start
+## Public API Reference
 
-### 1) Start interception
+All APIs live on the `Prowl` facade (`import ProwlKit`). Members are `@MainActor` — call from the main thread or inside a `@MainActor` context. Mock and rewrite helpers are `async`.
 
-Call this once at app startup:
+For narrative guides and symbol cross-links, see the [DocC documentation](#documentation) (`PublicAPIReference`, `GettingStarted`, `Configuration`, `AdvancedFeatures`, `HTTPClientIntegrations`).
+
+### Lifecycle
+
+Call `Prowl.start()` once at app startup. No extra view modifier is required.
 
 ```swift
 import ProwlKit
@@ -115,67 +124,45 @@ struct DemoApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        WindowGroup { ContentView() }
     }
 }
 ```
 
-### 2) Ignore Noise URLs (Optional)
-
-If your app heavily pings telemetry or third-party analytics (like Firebase, Mixpanel, etc.), you can cleanly exclude them from cluttering your Prowl logs.
-
-Pass an array of string partials directly when starting:
-
 ```swift
-Prowl.start(ignoredURLs: [
-    "https://firebaselogging.googleapis.com",
-    "https://api.mixpanel.com/",
-    "https://app-analytics-services.com/"
-])
+// Start with optional ignore rules (idempotent)
+Prowl.start(
+    ignoredURLs: ["https://firebaselogging.googleapis.com"],
+    ignoredURLRegexes: [#"https://telemetry\.[^/]+/collect"#]
+)
+
+// Inspector UI
+Prowl.show()
+Prowl.hide()
+Prowl.toggle()
+
+// Stop interception (logs are kept)
+Prowl.stop()
 ```
 
-Alternatively, you can dynamically ignore URLs later at runtime:
+After `Prowl.start()`:
+
+- **iOS** — shake device to toggle the inspector
+- **macOS** — click the **Prowl** menu-bar icon (**⌘⇧P**)
+
+### Ignore rules
 
 ```swift
 Prowl.ignoreURL("https://res.cloudinary.com/")
 Prowl.ignoreURL(regex: #"https://api\.example\.com/v[0-9]+/health"#)
+
+Prowl.ignoredURLs = ["https://analytics.example.com"]
+Prowl.ignoredURLRegexes = [#"https://.*\.internal/.*"#]
 ```
 
-You can also pass regex rules directly at startup:
+### Storage, configuration, and masking
 
-```swift
-Prowl.start(
-    ignoredURLs: ["https://firebaselogging.googleapis.com"],
-    ignoredURLRegexes: [#"https://api\.example\.com/internal/.*"#]
-)
-```
-
-### 3) Open the inspector
-
-No extra view modifier is required.
-
-After `Prowl.start()`:
-
-- iOS: shake device to toggle inspector
-- macOS: click the `Prowl` status bar icon and choose inspector actions from the popover panel
-
-You can also control inspector manually (iOS/macOS):
-
-```swift
-Prowl.show()
-Prowl.hide()
-Prowl.toggle()
-```
-
-On macOS, `Prowl.start()` automatically installs a menu bar item so you can open/toggle the inspector without embedding a custom debug screen.
-
-## Configure Storage and Masking
-
-`Prowl.configure(...)` is `async` — it awaits the runtime actor so the
-configuration is in place before it returns. Always `await` it before calling
-`Prowl.start()`:
+`Prowl.configure(...)` is `async` — always `await` it before `Prowl.start()` when order matters.
 
 ```swift
 import ProwlKit
@@ -188,43 +175,52 @@ let masker = SensitiveDataMasker(
 )
 
 Task { @MainActor in
-    await Prowl.configure(storage: storage, masker: masker)
+    await Prowl.configure(
+        storage: storage,
+        masker: masker,
+        isLoggingEnabled: true,
+        isSensitiveDataMaskingEnabled: false
+    )
     Prowl.start()
+}
+
+Task {
+    let store = await Prowl.storage()
+    let logs = await store.allLogs()
 }
 ```
 
-### Sensitive Data Masking Toggle
-
-Prowl can mask common secrets (for example `Authorization` bearer tokens, cookies, private keys, and common token/password JSON keys). Default is OFF.
-
-You can toggle this at runtime:
+Masking defaults to **off** (raw values shown). Toggle at runtime:
 
 ```swift
-import ProwlKit
-
-Prowl.isSensitiveDataMaskingEnabled = false // default (show raw values)
-Prowl.isSensitiveDataMaskingEnabled = true  // redact sensitive values
+Prowl.isSensitiveDataMaskingEnabled = true  // redact for demos / screen share
 ```
 
-## Endpoint rate alerts (optional)
-
-Flag noisy or critical endpoints when traffic crosses a threshold (per HTTP method + host + path, ignoring the query string). The request that reaches the threshold gets `NetworkLog.endpointRateAlertTriggered == true`, surfaced in the dashboard and detail screen.
+### Runtime flags
 
 ```swift
-import ProwlKit
+Prowl.isLoggingEnabled = false              // pause capture
+Prowl.isLoggingEnabled = true               // resume capture
 
-Prowl.endpointRateAlertRules = [
-    .init(match: .urlContains("https://api.example.com/v1/search"), threshold: 50),
-    .init(match: .urlRegularExpression(pattern: #"https://telemetry\.[^/]+/collect"#), threshold: 20)
-]
-
-// Counters reset automatically when you clear logs in the inspector, or manually:
-Prowl.resetEndpointRateAlertCounters()
+Prowl.isSessionPersistenceEnabled = true    // restore logs on next launch
 ```
 
-## Response body transform for logging (optional)
+### Custom URLSessionDelegate (pinning / mTLS)
 
-If responses are encrypted or encoded for transport, implement `ProwlResponseBodyLoggingTransforming` to supply **decoded bytes for logging only** (the live `URLSession` response is unchanged). Return `nil` to keep the original payload.
+Set before `Prowl.start()`:
+
+```swift
+final class MySessionDelegate: NSObject, URLSessionDelegate {
+    // Certificate pinning / trust handling
+}
+
+Prowl.customSessionDelegate = MySessionDelegate()
+Prowl.start()
+```
+
+### Response body transform (logging only)
+
+Implement `ProwlResponseBodyLoggingTransforming` to decode encrypted or encoded payloads **for display only**. The live `URLSession` response is unchanged.
 
 ```swift
 import ProwlKit
@@ -237,8 +233,7 @@ final class MyDecryptor: ProwlResponseBodyLoggingTransforming {
         url: URL?,
         statusCode: Int?
     ) -> Data? {
-        // Decode or decrypt `data` for display in Prowl; return nil to skip.
-        nil
+        nil // return decoded bytes, or nil to keep the original payload
     }
 }
 
@@ -246,113 +241,142 @@ Prowl.responseBodyLoggingTransformer = MyDecryptor()
 Prowl.start()
 ```
 
-## Stream Request Body Capture
+### Endpoint rate alerts
 
-Prowl now follows a body capture path (`httpBody` / `httpBodyStream` / metadata snapshot fallback).  
-For best reliability with custom stream builders, you can still attach a snapshot at request-build time:
-
-```swift
-import ProwlCore
-
-var request = URLRequest(url: endpoint)
-request.httpMethod = "POST"
-
-let payload = try JSONEncoder().encode(body)
-request.httpBodyStream = InputStream(data: payload)
-request.attachProwlBodySnapshot(payload) // optional reliability hint
-```
-
-### URLSession Integration (Automatic + Helpers)
-
-Prowl now installs safe snapshot support at `Prowl.start()` time for:
-
-- `URLSession.uploadTask(with:from:)`
-- `URLSession.uploadTask(with:from:completionHandler:)`
-
-That means payloads passed as `Data` are auto-attached as body snapshots for logging.
-
-For streamed uploads, use helper APIs:
+Flag noisy endpoints when traffic crosses a threshold (per HTTP method + host + path, query ignored). The request that hits the threshold gets `NetworkLog.endpointRateAlertTriggered == true`.
 
 ```swift
-import ProwlCore
+Prowl.endpointRateAlertRules = [
+    .init(match: .urlContains("https://api.example.com/v1/search"), threshold: 50),
+    .init(match: .urlRegularExpression(pattern: #"https://telemetry\.[^/]+/collect"#), threshold: 20)
+]
 
-var request = URLRequest(url: endpoint)
-request.httpMethod = "POST"
-
-let payload = try JSONEncoder().encode(body)
-request.setProwlHTTPBodyStream(payload) // stream + snapshot in one call
-
-let task = URLSession.shared.prowlUploadTask(
-    withStreamedRequest: request,
-    bodySnapshot: payload
-)
-task.resume()
+Prowl.resetEndpointRateAlertCounters() // also resets when you clear logs in the inspector
 ```
 
-### Alamofire Integration
+### Response mocking
 
-If you use Alamofire, plug in `ProwlAlamofireBodySnapshotInterceptor` to auto-attach request body snapshots during adaptation:
-
-```swift
-import Alamofire
-import ProwlCore
-
-let session = Session(
-    configuration: .default,
-    interceptor: ProwlAlamofireBodySnapshotInterceptor()
-)
-```
-
-### Moya Integration
-
-If you use Moya, add `ProwlMoyaBodySnapshotPlugin` to provider plugins:
-
-```swift
-import Moya
-import ProwlCore
-
-let provider = MoyaProvider<MyTarget>(
-    plugins: [ProwlMoyaBodySnapshotPlugin()]
-)
-```
-
-## Toggle Logging at Runtime
+Create rules from the inspector (**Share → Create Mock**) or programmatically. Rules persist to disk and reload on `Prowl.start()`.
 
 ```swift
 import ProwlKit
+import ProwlCore
 
-Prowl.isLoggingEnabled = false // pause interception
-Prowl.isLoggingEnabled = true  // resume interception
+Task { @MainActor in
+    let rule = ProwlMockRule(
+        targetURLPattern: "/api/users",
+        targetMethod: "GET",
+        mockStatusCode: 200,
+        mockBody: Data(#"{"users":[]}"#.utf8),
+        mockHeaders: ["Content-Type": "application/json; charset=utf-8"],
+        responseDelayMillis: 300
+    )
+
+    await Prowl.addMockRule(rule)
+    await Prowl.mockRules()
+    await Prowl.saveMockRule(rule)
+    await Prowl.moveMockRuleUp(id: rule.id)
+    await Prowl.moveMockRuleDown(id: rule.id)
+    await Prowl.setMockRuleEnabled(id: rule.id, enabled: false)
+    await Prowl.removeMockRule(id: rule.id)
+    await Prowl.removeAllMockRules()
+}
 ```
 
-## Custom URLSessionDelegate (Pinning / mTLS)
+Use a **specific URL pattern** so unrelated endpoints are not mocked.
 
-You can provide your own `URLSessionDelegate` (for certificate pinning, mTLS, or custom trust handling):
+### Request rewrite rules
+
+Rewrite outgoing requests before they hit the network (separate from response mocks):
 
 ```swift
-final class MySessionDelegate: NSObject, URLSessionDelegate {
-    // Implement trust / challenge handling here
-}
+Task { @MainActor in
+    let rule = ProwlRequestRewriteRule(
+        targetURLPattern: "api.staging.example.com",
+        targetMethod: "ANY",
+        replacementURL: "https://api.example.com",
+        headerOverrides: ["X-Env": "dev"],
+        headersToRemove: ["X-Old-Header"]
+    )
 
-Prowl.customSessionDelegate = MySessionDelegate()
-Prowl.start()
+    await Prowl.addRequestRewriteRule(rule)
+    await Prowl.requestRewriteRules()
+    await Prowl.saveRequestRewriteRule(rule)
+    await Prowl.setRequestRewriteRuleEnabled(id: rule.id, enabled: false)
+    await Prowl.removeRequestRewriteRule(id: rule.id)
+    await Prowl.removeAllRequestRewriteRules()
+}
 ```
 
-## Export Logs
+### WebSocket logging
 
-In the inspector toolbar:
+Prowl does not auto-intercept WebSockets — call the hook from your client or use `ProwlWebSocketMonitor`:
 
-- **Formatted Text** exports readable full entries
-- **cURL Commands** exports executable requests for replay/debugging
+```swift
+import ProwlKit
+import ProwlCore
 
-Platform behavior:
+let connectionID = UUID()
+let url = URL(string: "wss://echo.example.com")!
 
-- iOS uses `UIActivityViewController`
-- macOS uses `NSSavePanel`
+Task { @MainActor in
+    await Prowl.logWebSocketEvent(url: url, event: .open, connectionID: connectionID)
+    await Prowl.logWebSocketEvent(url: url, event: .message(text: #"{"hello":"world"}"#), connectionID: connectionID)
+    await Prowl.logWebSocketEvent(url: url, event: .closed(code: 1000, reason: "done"), connectionID: connectionID)
+}
 
-## Manual Inspector View
+let task = URLSession.shared.webSocketTask(with: url)
+let monitor = ProwlWebSocketMonitor(url: url)
+monitor.attach(to: task)
+task.resume()
+// monitor.logIncomingMessage(message)
+```
 
-If you want to present the inspector yourself:
+### gRPC logging
+
+Log from your gRPC client interceptor:
+
+```swift
+Task { @MainActor in
+    await Prowl.logGrpcCall(
+        fullMethodName: "/my.package.Service/GetUser",
+        methodType: "UNARY",
+        requestBody: Data(#"{"id":1}"#.utf8),
+        responseBody: Data(#"{"name":"Ada"}"#.utf8),
+        grpcStatusCode: 0,
+        duration: 0.042
+    )
+}
+```
+
+### Export logs
+
+Inspector toolbar: **Formatted Text**, **cURL Commands**, or **HAR 1.2** (iOS share sheet, macOS save panel).
+
+```swift
+Task {
+    let storage = await Prowl.storage()
+    let logs = await storage.allLogs()
+    let text = ProwlLogFormatter.export(logs: logs, as: .formattedText)
+    let curl = ProwlLogFormatter.export(logs: logs, as: .curlCommands)
+    let har = ProwlLogFormatter.export(logs: logs, as: .har)
+}
+```
+
+### Search syntax
+
+In the inspector search bar, or programmatically:
+
+```swift
+import ProwlCore
+
+let query = ProwlSearchParser.parse("method:GET status:4xx host:api.example.com users")
+let matches = logs.filter { ProwlSearchParser.matches($0, query: query) }
+```
+
+Supported tokens: `method:GET`, `status:404`, `status:4xx`, `host:example.com`, plus free-text tokens.
+
+### Manual inspector view
 
 ```swift
 import SwiftUI
@@ -365,41 +389,69 @@ struct DebugPanelHost: View {
 }
 ```
 
-## Example App
+### HTTP client integrations
 
-A complete usage example lives in:
+Prowl reads `httpBody`, `httpBodyStream`, and metadata snapshots. At `Prowl.start()`, `URLSession.uploadTask(with:from:)` payloads are auto-attached for logging.
 
-```text
-Example/Prowl-example
+**Stream / manual snapshot**
+
+```swift
+import ProwlCore
+
+var request = URLRequest(url: endpoint)
+request.httpMethod = "POST"
+
+let payload = try JSONEncoder().encode(body)
+request.httpBodyStream = InputStream(data: payload)
+request.attachProwlBodySnapshot(payload)
+
+// or: request.setProwlHTTPBodyStream(payload)
+let task = URLSession.shared.prowlUploadTask(withStreamedRequest: request, bodySnapshot: payload)
+task.resume()
 ```
 
-It includes:
+**Alamofire**
+
+```swift
+import Alamofire
+import ProwlCore
+
+let session = Session(
+    configuration: .default,
+    interceptor: ProwlAlamofireBodySnapshotInterceptor()
+)
+```
+
+**Moya**
+
+```swift
+import Moya
+import ProwlCore
+
+let provider = MoyaProvider<MyTarget>(
+    plugins: [ProwlMoyaBodySnapshotPlugin()]
+)
+```
+
+## Example App
+
+A complete usage example lives in `Example/Prowl-example`:
+
 - iOS tabs with live API traffic
 - macOS menu bar inspector integration
 - mock/edit flows and export actions
-
-## Stop Interception
-
-```swift
-Prowl.stop()
-```
 
 ## Upgrade Guide
 
 - Prefer upgrading by immutable tags (`1.0.x`) instead of floating revisions.
 - If you hit SPM cache mismatch after tag updates, reset package caches in Xcode and re-resolve packages.
-- After upgrading:
-  - run your app with `Prowl.isSensitiveDataMaskingEnabled = false` first for parity checks
-  - then enable masking in production if needed.
+- After upgrading, run with `Prowl.isSensitiveDataMaskingEnabled = false` first for parity checks, then enable masking if needed.
 
 ## Troubleshooting
 
-- **CI iOS build fails with `cannot find <symbol> in scope`**  
-  Usually caused by access-level changes across package targets. Prefer `package` visibility for cross-target internals.
-- **`swift test` passes but iOS package build fails**  
-  Run `xcodebuild` package scheme checks locally (same command as CI) because iOS-only paths can be skipped by macOS test runs.
-- **SPM tag/revision conflicts**  
-  Ensure release tags are immutable and never retag existing versions.
+- **CI iOS build fails with `cannot find <symbol> in scope`** — usually access-level changes across package targets; prefer `package` visibility for cross-target internals.
+- **`swift test` passes but iOS package build fails** — run `xcodebuild` package scheme checks locally; iOS-only paths can be skipped by macOS test runs.
+- **SPM tag/revision conflicts** — ensure release tags are immutable and never retag existing versions.
 
 ## Public API Policy
 
@@ -409,14 +461,7 @@ Prowl.stop()
 
 ## Release Checklist
 
-Use this checklist before publishing a public tag:
-
-1. Ensure tests pass locally:
-
-```bash
-swift test
-```
-
+1. Ensure tests pass: `swift test`
 2. Verify CI is green on both configured Xcode lanes (`latest-stable` and pinned lane).
 3. Review public API surface (only intentional symbols should remain `public`).
 4. Validate docs examples in this `README.md` still match current behavior.
@@ -447,6 +492,7 @@ Full **DocC** documentation ships with the `ProwlKit` target:
 | --- | --- |
 | Module landing | `Sources/ProwlKit/ProwlKit.docc/ProwlKit.md` |
 | Getting Started | `Sources/ProwlKit/ProwlKit.docc/GettingStarted.md` |
+| Public API Reference | `Sources/ProwlKit/ProwlKit.docc/PublicAPIReference.md` |
 | Configuration | `Sources/ProwlKit/ProwlKit.docc/Configuration.md` |
 | Advanced Features | `Sources/ProwlKit/ProwlKit.docc/AdvancedFeatures.md` |
 | HTTP Client Integrations | `Sources/ProwlKit/ProwlKit.docc/HTTPClientIntegrations.md` |

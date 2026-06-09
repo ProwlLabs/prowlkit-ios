@@ -8,19 +8,14 @@
 
 import Foundation
 
-/// A rule that intercepts matching requests and returns a synthetic HTTP response.
-///
-/// Matching is case-insensitive substring on the full URL string. Method must
-/// match exactly unless ``targetMethod`` is `"ANY"`.
 public struct ProwlMockRule: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var targetURLPattern: String
     public var targetMethod: String
-
     public var mockStatusCode: Int
     public var mockBody: Data
     public var mockHeaders: [String: String]
-
+    public var responseDelayMillis: Int
     public var isEnabled: Bool
 
     public init(
@@ -30,6 +25,7 @@ public struct ProwlMockRule: Identifiable, Codable, Equatable, Sendable {
         mockStatusCode: Int = 200,
         mockBody: Data = Data(),
         mockHeaders: [String: String] = ["Content-Type": "application/json"],
+        responseDelayMillis: Int = 0,
         isEnabled: Bool = true
     ) {
         self.id = id
@@ -38,10 +34,10 @@ public struct ProwlMockRule: Identifiable, Codable, Equatable, Sendable {
         self.mockStatusCode = mockStatusCode
         self.mockBody = mockBody
         self.mockHeaders = mockHeaders
+        self.responseDelayMillis = max(0, responseDelayMillis)
         self.isEnabled = isEnabled
     }
 
-    /// UTF-8 body text for display in the mock manager.
     public var mockBodyText: String {
         String(data: mockBody, encoding: .utf8) ?? ""
     }
@@ -53,21 +49,55 @@ public actor ProwlMocker {
     private var rules: [ProwlMockRule] = []
 
     public func addRule(_ rule: ProwlMockRule) {
-        rules.append(rule)
+        saveRule(rule)
     }
 
     public func updateRule(_ rule: ProwlMockRule) {
-        if let index = rules.firstIndex(where: { $0.id == rule.id }) {
-            rules[index] = rule
+        saveRule(rule)
+    }
+
+    public func saveRule(_ rule: ProwlMockRule) {
+        if let byID = rules.firstIndex(where: { $0.id == rule.id }) {
+            if let duplicate = rules.firstIndex(where: {
+                Self.hasSameMatchKey($0, rule) && $0.id != rule.id
+            }) {
+                rules.remove(at: duplicate)
+            }
+            rules[byID] = rule
+        } else if let byKey = rules.firstIndex(where: { Self.hasSameMatchKey($0, rule) }) {
+            rules[byKey] = rule
+        } else {
+            rules.append(rule)
         }
+        notifyChanged()
+    }
+
+    public func moveRuleUp(id: UUID) {
+        guard let index = rules.firstIndex(where: { $0.id == id }), index > 0 else { return }
+        rules.swapAt(index, index - 1)
+        notifyChanged()
+    }
+
+    public func moveRuleDown(id: UUID) {
+        guard let index = rules.firstIndex(where: { $0.id == id }), index < rules.count - 1 else { return }
+        rules.swapAt(index, index + 1)
+        notifyChanged()
     }
 
     public func removeRule(id: UUID) {
-        rules.removeAll(where: { $0.id == id })
+        rules.removeAll { $0.id == id }
+        notifyChanged()
     }
 
     public func removeAllRules() {
         rules.removeAll()
+        ProwlMockPersistence.clear()
+        publishRules()
+    }
+
+    public func replaceAllRules(_ newRules: [ProwlMockRule]) {
+        rules = newRules
+        publishRules()
     }
 
     public func allRules() -> [ProwlMockRule] {
@@ -75,17 +105,30 @@ public actor ProwlMocker {
     }
 
     package func findMatch(for request: URLRequest) -> ProwlMockRule? {
-        guard let urlStr = request.url?.absoluteString else { return nil }
+        let urlStr = request.url?.absoluteString
         let method = request.httpMethod ?? "GET"
-
         return rules.first { rule in
-            guard rule.isEnabled, !rule.targetURLPattern.isEmpty else { return false }
-            guard urlStr.lowercased().contains(rule.targetURLPattern.lowercased()) else { return false }
-
-            if !rule.targetMethod.isEmpty && rule.targetMethod.uppercased() != "ANY" {
-                guard method.uppercased() == rule.targetMethod.uppercased() else { return false }
-            }
-            return true
+            ProwlRuleMatcher.matches(
+                url: urlStr,
+                method: method,
+                targetURLPattern: rule.targetURLPattern,
+                targetMethod: rule.targetMethod,
+                isEnabled: rule.isEnabled
+            )
         }
+    }
+
+    private func notifyChanged() {
+        ProwlMockPersistence.persist(rules)
+        publishRules()
+    }
+
+    private func publishRules() {
+        NotificationCenter.default.post(name: .prowlMockRulesDidChange, object: nil)
+    }
+
+    private static func hasSameMatchKey(_ a: ProwlMockRule, _ b: ProwlMockRule) -> Bool {
+        a.targetURLPattern.caseInsensitiveCompare(b.targetURLPattern) == .orderedSame
+            && a.targetMethod.caseInsensitiveCompare(b.targetMethod) == .orderedSame
     }
 }

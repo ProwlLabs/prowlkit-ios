@@ -126,6 +126,7 @@ ProwlInspectorView(storage: myStorage)
 
 ## See Also
 
+- <doc:PublicAPIReference>
 - ``Prowl``
 - ``ProwlStorage``
 - ``SensitiveDataMasker``

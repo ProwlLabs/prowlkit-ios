@@ -18,6 +18,8 @@ public actor ProwlStorage {
     /// AsyncStream type yielding the full log array on every change.
     public typealias LogStream = AsyncStream<[NetworkLog]>
 
+    nonisolated(unsafe) package static var onLogsChanged: (@Sendable ([NetworkLog]) -> Void)?
+
     private var logs: [NetworkLog] = []
     private var limit: Int
     private var observers: [UUID: LogStream.Continuation] = [:]
@@ -57,6 +59,12 @@ public actor ProwlStorage {
         publish()
     }
 
+    package func restoreIfEmpty(_ restored: [NetworkLog]) {
+        guard logs.isEmpty, !restored.isEmpty else { return }
+        logs = Array(restored.suffix(limit))
+        publish()
+    }
+
     /// Returns an async stream that emits the full log array on every change.
     ///
     /// The first value is the current snapshot; subsequent values arrive on
@@ -86,5 +94,7 @@ public actor ProwlStorage {
         for continuation in observers.values {
             continuation.yield(logs)
         }
+        let snapshot = logs
+        ProwlStorage.onLogsChanged?(snapshot)
     }
 }

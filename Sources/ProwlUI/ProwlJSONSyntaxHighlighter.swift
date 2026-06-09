@@ -17,9 +17,15 @@ private typealias ProwlPlatformColor = NSColor
 #endif
 
 enum ProwlJSONSyntaxHighlighter {
+    static func looksLikeJSON(_ text: String, contentType: String?) -> Bool {
+        if isJSON(contentType: contentType) { return true }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasPrefix("{") || trimmed.hasPrefix("[")
+    }
+
     static func highlight(_ text: String, contentType: String?) -> AttributedString {
     #if canImport(UIKit) || canImport(AppKit)
-        guard isJSON(contentType: contentType) else {
+        guard looksLikeJSON(text, contentType: contentType) else {
             return AttributedString(text)
         }
 

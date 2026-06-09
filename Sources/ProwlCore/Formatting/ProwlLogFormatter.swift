@@ -15,12 +15,15 @@ public enum ProwlExportFormat: String, Sendable {
     case formattedText
     /// One `curl` command per log, suitable for shell replay.
     case curlCommands
+    /// HAR 1.2 JSON for Chrome DevTools and other analyzers.
+    case har
 
     /// Suggested filename when saving or sharing exported content.
     public var fileName: String {
         switch self {
         case .formattedText: return "prowl-logs.txt"
         case .curlCommands: return "prowl-curl.sh"
+        case .har: return "prowl.har"
         }
     }
 }
@@ -35,6 +38,7 @@ public enum ProwlLogFormatter {
         switch format {
         case .formattedText: return formattedText(logs: logs)
         case .curlCommands: return curlBundle(logs: logs)
+        case .har: return ProwlHarExporter.export(logs)
         }
     }
 

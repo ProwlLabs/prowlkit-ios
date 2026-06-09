@@ -67,6 +67,45 @@ struct ProwlDashboardRowView: View {
                     .accessibilityLabel("Endpoint rate threshold reached")
                 }
 
+                if log.responseMocked {
+                    Text("MOCK")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundColor(isSelectedOnMac ? .white : Color(red: 0.69, green: 0.32, blue: 0.87))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            (isSelectedOnMac ? Color.white.opacity(0.22) : Color(red: 0.69, green: 0.32, blue: 0.87).opacity(0.18)),
+                            in: Capsule()
+                        )
+                        .accessibilityLabel("Mocked response")
+                }
+
+                if log.requestRewritten {
+                    Text("REWRITE")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundColor(isSelectedOnMac ? .white : Color(red: 0.95, green: 0.57, blue: 0.19))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            (isSelectedOnMac ? Color.white.opacity(0.22) : Color(red: 0.95, green: 0.57, blue: 0.19).opacity(0.18)),
+                            in: Capsule()
+                        )
+                        .accessibilityLabel("Request rewritten")
+                }
+
+                if ProwlWatchStore.isWatched(log) {
+                    Text("WATCH")
+                        .font(.caption2.weight(.heavy))
+                        .foregroundColor(isSelectedOnMac ? .white : .yellow)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            (isSelectedOnMac ? Color.white.opacity(0.22) : Color.yellow.opacity(0.18)),
+                            in: Capsule()
+                        )
+                        .accessibilityLabel("Watched endpoint")
+                }
+
                 if let host = log.url?.host {
                     Text(host)
                         .font(hostFont)
