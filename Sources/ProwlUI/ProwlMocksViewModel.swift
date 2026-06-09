@@ -30,7 +30,7 @@ public final class ProwlMocksViewModel: ObservableObject {
     }
 
     public func toggleMockEnabled(_ rule: ProwlMockRule) {
-        Task {
+        Task { @MainActor in
             var updated = rule
             updated.isEnabled = !rule.isEnabled
             await ProwlMocker.shared.saveRule(updated)
@@ -39,7 +39,7 @@ public final class ProwlMocksViewModel: ObservableObject {
     }
 
     public func toggleRewriteEnabled(_ rule: ProwlRequestRewriteRule) {
-        Task {
+        Task { @MainActor in
             var updated = rule
             updated.isEnabled = !rule.isEnabled
             await ProwlRequestRewriter.shared.saveRule(updated)
@@ -48,42 +48,42 @@ public final class ProwlMocksViewModel: ObservableObject {
     }
 
     public func deleteMock(_ rule: ProwlMockRule) {
-        Task {
+        Task { @MainActor in
             await ProwlMocker.shared.removeRule(id: rule.id)
             await reloadMocks()
         }
     }
 
     public func deleteRewrite(_ rule: ProwlRequestRewriteRule) {
-        Task {
+        Task { @MainActor in
             await ProwlRequestRewriter.shared.removeRule(id: rule.id)
             await reloadRewrites()
         }
     }
 
     public func deleteAllMocks() {
-        Task {
+        Task { @MainActor in
             await ProwlMocker.shared.removeAllRules()
             await reloadMocks()
         }
     }
 
     public func deleteAllRewrites() {
-        Task {
+        Task { @MainActor in
             await ProwlRequestRewriter.shared.removeAllRules()
             await reloadRewrites()
         }
     }
 
     public func moveMockUp(_ rule: ProwlMockRule) {
-        Task {
+        Task { @MainActor in
             await ProwlMocker.shared.moveRuleUp(id: rule.id)
             await reloadMocks()
         }
     }
 
     public func moveMockDown(_ rule: ProwlMockRule) {
-        Task {
+        Task { @MainActor in
             await ProwlMocker.shared.moveRuleDown(id: rule.id)
             await reloadMocks()
         }

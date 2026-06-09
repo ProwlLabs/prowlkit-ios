@@ -54,8 +54,6 @@ struct ProwlMockEditorView: View {
         }
     }
 
-    // MARK: - macOS
-
     #if os(macOS)
     private var macLayout: some View {
         VStack(spacing: 0) {
@@ -202,8 +200,6 @@ struct ProwlMockEditorView: View {
     }
     #endif
 
-    // MARK: - iOS
-
     #if !os(macOS)
     private var iosLayout: some View {
         NavigationView {
@@ -227,8 +223,6 @@ struct ProwlMockEditorView: View {
         }
     }
     #endif
-
-    // MARK: - iOS form sections
 
     #if !os(macOS)
     private var matcherSection: some View {
@@ -334,8 +328,6 @@ struct ProwlMockEditorView: View {
             .frame(minHeight: 200)
             #endif
     }
-
-    // MARK: - Helpers
 
     private var canSave: Bool {
         !targetURLPattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

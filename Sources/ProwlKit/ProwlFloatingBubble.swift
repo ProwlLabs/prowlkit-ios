@@ -25,9 +25,11 @@ enum ProwlFloatingBubble {
     private static let iconPadding: CGFloat = 11
     private static let brandPurple = UIColor(red: 0.424, green: 0.361, blue: 0.906, alpha: 1)
 
+    private static var overlayWindow: PassThroughWindow?
     private static var bubbleView: BubbleView?
     private static var observers: [NSObjectProtocol] = []
     private static var isInstalled = false
+    private static var deferredRefreshTask: Task<Void, Never>?
 
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: ProwlUiPreferenceKeys.floatingBubble)
@@ -41,48 +43,86 @@ enum ProwlFloatingBubble {
             NotificationCenter.default.addObserver(
                 forName: UIApplication.didBecomeActiveNotification,
                 object: nil,
-                queue: nil
+                queue: .main
             ) { _ in
-                Task { @MainActor in refresh() }
+                restoreIfNeeded()
             },
             NotificationCenter.default.addObserver(
                 forName: UIScene.didActivateNotification,
                 object: nil,
-                queue: nil
+                queue: .main
             ) { _ in
-                Task { @MainActor in refresh() }
+                restoreIfNeeded()
             },
             NotificationCenter.default.addObserver(
                 forName: .prowlFloatingBubblePreferenceDidChange,
                 object: nil,
-                queue: nil
-            ) { _ in
-                Task { @MainActor in refresh() }
+                queue: .main
+            ) { notification in
+                let enabledOverride = notification.object as? Bool
+                refresh(enabledOverride: enabledOverride)
             },
         ]
         refresh()
     }
 
     static func uninstall() {
-        hide()
+        deferredRefreshTask?.cancel()
+        deferredRefreshTask = nil
+        hideOverlay()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
         isInstalled = false
     }
 
-    static func refresh() {
-        hide()
-        guard isInstalled, isEnabled else { return }
-        guard ProwlAutoInspector.isInspectorVisible == false else { return }
-        guard let window = keyWindow() else { return }
-        show(on: window)
+    /// Shows or hides the bubble without tearing down an already-visible instance.
+    static func refresh(enabledOverride: Bool? = nil) {
+        let enabled = enabledOverride ?? isEnabled
+        guard isInstalled else { return }
+
+        if !enabled || ProwlAutoInspector.isInspectorVisible {
+            hideOverlay()
+            return
+        }
+
+        guard let scene = activeWindowScene() else {
+            scheduleDeferredRefresh()
+            return
+        }
+
+        if overlayWindow?.windowScene === scene, bubbleView?.superview != nil {
+            overlayWindow?.isHidden = false
+            return
+        }
+
+        mountOverlay(on: scene)
+    }
+
+    /// Re-attaches the overlay after app/scene activation only when it went missing.
+    static func restoreIfNeeded() {
+        guard isInstalled, isEnabled, !ProwlAutoInspector.isInspectorVisible else { return }
+        if bubbleView?.superview != nil, overlayWindow?.isHidden == false {
+            return
+        }
+        refresh()
     }
 
     static func hideWhileInspectorVisible() {
-        hide()
+        overlayWindow?.isHidden = true
     }
 
-    private static func show(on window: UIWindow) {
+    private static func mountOverlay(on scene: UIWindowScene) {
+        hideOverlay()
+
+        let overlay = PassThroughWindow(windowScene: scene)
+        overlay.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.statusBar.rawValue + 1)
+        overlay.backgroundColor = .clear
+        let host = UIViewController()
+        host.view.backgroundColor = .clear
+        overlay.rootViewController = host
+        overlay.isHidden = false
+        overlayWindow = overlay
+
         let bubble = BubbleView(
             size: fabSize,
             strokeWidth: fabStroke,
@@ -92,9 +132,9 @@ enum ProwlFloatingBubble {
             ProwlAutoInspector.toggle()
         }
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        window.addSubview(bubble)
+        host.view.addSubview(bubble)
 
-        let safe = window.safeAreaLayoutGuide
+        let safe = host.view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
             bubble.widthAnchor.constraint(equalToConstant: fabSize),
             bubble.heightAnchor.constraint(equalToConstant: fabSize),
@@ -103,25 +143,48 @@ enum ProwlFloatingBubble {
         ])
 
         bubbleView = bubble
-        bubble.attachDrag(in: window)
+        bubble.attachDrag(in: host.view)
+        overlay.layoutIfNeeded()
     }
 
-    private static func hide() {
+    private static func hideOverlay() {
         bubbleView?.removeFromSuperview()
         bubbleView = nil
+        overlayWindow?.isHidden = true
+        overlayWindow?.rootViewController = nil
+        overlayWindow = nil
     }
 
-    private static func keyWindow() -> UIWindow? {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let foregroundWindows = scenes
-            .filter { $0.activationState == .foregroundActive }
-            .flatMap(\.windows)
-            .filter { $0.rootViewController != nil }
-
-        if let activeKeyWindow = foregroundWindows.first(where: \.isKeyWindow) {
-            return activeKeyWindow
+    private static func scheduleDeferredRefresh() {
+        deferredRefreshTask?.cancel()
+        deferredRefreshTask = Task { @MainActor in
+            for _ in 0..<10 {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled, isInstalled, isEnabled else { return }
+                if bubbleView?.superview != nil { return }
+                if activeWindowScene() != nil {
+                    refresh()
+                    return
+                }
+            }
         }
-        return foregroundWindows.first
+    }
+
+    private static func activeWindowScene() -> UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let active = scenes.first(where: { $0.activationState == .foregroundActive }) {
+            return active
+        }
+        return scenes.first
+    }
+
+    /// Full-screen overlay that forwards touches outside the bubble to the app below.
+    private final class PassThroughWindow: UIWindow {
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            let hit = super.hitTest(point, with: event)
+            if hit === rootViewController?.view { return nil }
+            return hit
+        }
     }
 
     private final class BubbleView: UIView {
@@ -192,7 +255,7 @@ enum ProwlFloatingBubble {
             fatalError("init(coder:) has not been implemented")
         }
 
-        func attachDrag(in window: UIWindow) {
+        func attachDrag(in container: UIView) {
             let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
             addGestureRecognizer(pan)
         }

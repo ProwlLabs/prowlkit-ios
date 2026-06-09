@@ -76,7 +76,7 @@
 - Export logs as formatted text, cURL, or HAR 1.2
 - WebSocket and gRPC manual logging hooks
 - Activation shortcuts:
-  - iOS shake gesture (+ optional debug notification)
+  - iOS shake gesture & floating debug bubble
   - macOS menu bar popover + `Command + Shift + P`
 
 ## Install (SPM)
@@ -193,16 +193,16 @@ Task {
 Masking defaults to **off** (raw values shown). Toggle at runtime:
 
 ```swift
-Prowl.isSensitiveDataMaskingEnabled = true  // redact for demos / screen share
+Prowl.isSensitiveDataMaskingEnabled = true
 ```
 
 ### Runtime flags
 
 ```swift
-Prowl.isLoggingEnabled = false              // pause capture
-Prowl.isLoggingEnabled = true               // resume capture
+Prowl.isLoggingEnabled = false 
+Prowl.isLoggingEnabled = true
 
-Prowl.isSessionPersistenceEnabled = true    // restore logs on next launch
+Prowl.isSessionPersistenceEnabled = true
 ```
 
 ### Custom URLSessionDelegate (pinning / mTLS)
@@ -435,11 +435,12 @@ let provider = MoyaProvider<MyTarget>(
 
 ## Example App
 
-A complete usage example lives in `Example/Prowl-example`:
+A complete usage example lives in the sibling project [**Prowl-example**](../Prowl-example) 
 
 - iOS tabs with live API traffic
 - macOS menu bar inspector integration
 - mock/edit flows and export actions
+- **API** playground covering every public `Prowl` facade method
 
 ## Upgrade Guide
 

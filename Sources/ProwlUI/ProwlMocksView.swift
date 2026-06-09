@@ -48,10 +48,10 @@ public struct ProwlMocksView: View {
         }
         .task { await viewModel.load() }
         .onReceive(NotificationCenter.default.publisher(for: .prowlMockRulesDidChange)) { _ in
-            Task { await viewModel.reloadMocks() }
+            Task { @MainActor in await viewModel.reloadMocks() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .prowlRewriteRulesDidChange)) { _ in
-            Task { await viewModel.reloadRewrites() }
+            Task { @MainActor in await viewModel.reloadRewrites() }
         }
         .sheet(item: $editingMockRule) { rule in
             #if os(macOS)

@@ -114,6 +114,6 @@ public actor ProwlRequestRewriter {
     }
 
     private func publishRules() {
-        NotificationCenter.default.post(name: .prowlRewriteRulesDidChange, object: nil)
+        ProwlRulesNotifier.postRewriteRulesDidChange()
     }
 }

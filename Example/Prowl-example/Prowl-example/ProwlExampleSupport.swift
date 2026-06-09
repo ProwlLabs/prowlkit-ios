@@ -63,8 +63,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         }
     }
 
-    // MARK: - Lifecycle
-
     func showInspector() { Prowl.show(); status = "Prowl.show()" }
     func hideInspector() { Prowl.hide(); status = "Prowl.hide()" }
     func toggleInspector() { Prowl.toggle(); status = "Prowl.toggle()" }
@@ -73,8 +71,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         Prowl.start(ignoredURLs: ["https://httpbin.org/status/418"])
         status = "Prowl.stop() → Prowl.start()"
     }
-
-    // MARK: - Flags
 
     func toggleLogging() {
         Prowl.isLoggingEnabled.toggle()
@@ -90,8 +86,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         Prowl.isSessionPersistenceEnabled.toggle()
         status = "isSessionPersistenceEnabled = \(Prowl.isSessionPersistenceEnabled)"
     }
-
-    // MARK: - Ignore rules
 
     func addIgnoreURL() {
         Prowl.ignoreURL("example-telemetry.local")
@@ -109,15 +103,11 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         status = "ignoredURLs & ignoredURLRegexes replaced"
     }
 
-    // MARK: - Storage
-
     func readStorage() async {
         let storage = await Prowl.storage()
         let logs = await storage.allLogs()
         status = "storage(): \(logs.count) log(s)"
     }
-
-    // MARK: - Rate alerts
 
     func resetRateAlerts() {
         Prowl.resetEndpointRateAlertCounters()
@@ -130,8 +120,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         ]
         status = "endpointRateAlertRules updated"
     }
-
-    // MARK: - Mock rules
 
     func demoMockCRUD() async {
         var rules = await Prowl.mockRules()
@@ -175,8 +163,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         status = "removeMockRule(id:)"
     }
 
-    // MARK: - Rewrite rules
-
     func demoRewriteCRUD() async {
         var rules = await Prowl.requestRewriteRules()
         if rules.isEmpty {
@@ -215,8 +201,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         status = "removeRequestRewriteRule(id:)"
     }
 
-    // MARK: - WebSocket & gRPC hooks
-
     func logWebSocketSequence() async {
         let url = URL(string: "wss://echo.websocket.events")!
         await Prowl.logWebSocketEvent(url: url, event: .open, connectionID: wsConnectionID)
@@ -244,8 +228,6 @@ final class ProwlExampleAPIPlayground: ObservableObject {
         )
         status = "logGrpcCall()"
     }
-
-    // MARK: - Export & search
 
     func exportLogs() async {
         let storage = await Prowl.storage()

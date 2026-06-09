@@ -5,8 +5,6 @@
 "Method Breakdown" = "تفصيل الطرق";
 "Persist sessions" = "حفظ الجلسة";
 "Restore captured logs after the app is killed." = "استعادة السجلات بعد إغلاق التطبيق.";
-"Debug notification" = "إشعار التصحيح";
-"Show a notification with live request count." = "عرض إشعار بعدد الطلبات.";
 "Export HAR" = "تصدير HAR";
 "Import Mock Rules" = "استيراد قواعد mock";
 "Export Mock Rules" = "تصدير قواعد mock";

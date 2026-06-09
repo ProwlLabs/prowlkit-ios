@@ -16,8 +16,6 @@ enum ProwlStrings {
     static let methodBreakdown = String(localized: "Method Breakdown", bundle: .module)
     static let persistSessions = String(localized: "Persist sessions", bundle: .module)
     static let persistSessionsHint = String(localized: "Restore captured logs after the app is killed.", bundle: .module)
-    static let debugNotification = String(localized: "Debug notification", bundle: .module)
-    static let debugNotificationHint = String(localized: "Show a notification with live request count.", bundle: .module)
     static let exportHAR = String(localized: "Export HAR", bundle: .module)
     static let importMocks = String(localized: "Import Mock Rules", bundle: .module)
     static let exportMocks = String(localized: "Export Mock Rules", bundle: .module)

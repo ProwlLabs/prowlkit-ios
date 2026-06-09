@@ -167,8 +167,6 @@ public enum Prowl {
         await ProwlMocker.shared.saveRule(rules[index])
     }
 
-    // MARK: - Request rewrite rules
-
     public static func requestRewriteRules() async -> [ProwlRequestRewriteRule] {
         await ProwlRequestRewriter.shared.allRules()
     }
@@ -310,18 +308,12 @@ public enum Prowl {
 
         ProwlStorage.onLogsChanged = { logs in
             ProwlSessionPersistence.persist(logs)
-            #if os(iOS)
-            Task { @MainActor in
-                ProwlNotificationService.updateRequestCount(logs.count)
-            }
-            #endif
         }
 
         ProwlRuntime.installRequestBodySnapshotSupportIfNeeded()
         URLProtocol.registerClass(ProwlProtocol.self)
         #if os(iOS)
             ProwlAutoInspector.enable()
-            ProwlNotificationService.install()
         #elseif os(macOS)
             ProwlMenuBarInspector.enable()
         #endif
@@ -339,7 +331,6 @@ public enum Prowl {
         URLProtocol.unregisterClass(ProwlProtocol.self)
         #if os(iOS)
             ProwlAutoInspector.disable()
-            ProwlNotificationService.uninstall()
         #elseif os(macOS)
             ProwlMenuBarInspector.disable()
         #endif

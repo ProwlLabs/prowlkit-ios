@@ -5,7 +5,6 @@
 //  Created by Elmee on 16/04/26.
 //  Copyright © 2026 Elmee. All rights reserved.
 //
-//
 
 import Foundation
 
@@ -52,18 +51,27 @@ public enum ProwlLogFormatter {
     }
 
     public static func prettyBodyText(from body: NetworkLog.Body) -> String {
-        if let object = try? JSONSerialization.jsonObject(with: body.data),
+        let decoded = ProwlBodyDecoder.decodeIfNeeded(body.data, contentEncoding: nil)
+
+        if ProwlBodyDecoder.isImageContentType(body.contentType) {
+            return "Image (\(decoded.count) bytes)"
+        }
+        if !ProwlBodyDecoder.looksLikeText(decoded, contentType: body.contentType) {
+            return ProwlBodyDecoder.hexPreview(decoded)
+        }
+
+        if let object = try? JSONSerialization.jsonObject(with: decoded),
            let prettyData = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
            let string = String(data: prettyData, encoding: .utf8) {
             return string
         }
         if isFormURLEncoded(body.contentType),
-           let formText = String(data: body.data, encoding: .utf8),
+           let formText = String(data: decoded, encoding: .utf8),
            let formatted = prettyFormURLEncodedBody(formText) {
             return formatted
         }
-        if let utf8 = String(data: body.data, encoding: .utf8) { return utf8 }
-        return body.data.base64EncodedString()
+        if let utf8 = String(data: decoded, encoding: .utf8) { return utf8 }
+        return decoded.base64EncodedString()
     }
 
     /// Builds a single-log share payload (same layout as the detail view share action).

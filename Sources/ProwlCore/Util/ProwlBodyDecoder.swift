@@ -7,7 +7,9 @@
 //
 
 import Foundation
-import Compression
+#if canImport(zlib)
+import zlib
+#endif
 
 enum ProwlBodyDecoder {
     private static let maxDecompressedBytes = 2 * 1024 * 1024
@@ -15,10 +17,14 @@ enum ProwlBodyDecoder {
     static func decodeIfNeeded(_ data: Data, contentEncoding: String?) -> Data {
         guard !data.isEmpty else { return data }
         let encoding = contentEncoding?.lowercased() ?? ""
-        if encoding.contains("gzip") || isGzip(data) {
+
+        // URLSession often strips Content-Encoding after transparent decompression.
+        // Only decompress when the bytes still look compressed — never based on the
+        // header alone, or plain JSON gets corrupted into garbage like "pQ=".
+        if isGzip(data) {
             return decompressGzip(data) ?? data
         }
-        if encoding.contains("deflate") {
+        if encoding.contains("deflate"), !looksLikeText(data, contentType: nil) {
             return decompressDeflate(data) ?? data
         }
         return data
@@ -92,29 +98,68 @@ enum ProwlBodyDecoder {
     }
 
     private static func decompressGzip(_ data: Data) -> Data? {
-        decompress(data, algorithm: COMPRESSION_ZLIB)
+        #if canImport(zlib)
+        return inflateZlib(data, windowBits: MAX_WBITS + 32)
+        #else
+        return nil
+        #endif
     }
 
     private static func decompressDeflate(_ data: Data) -> Data? {
-        decompress(data, algorithm: COMPRESSION_ZLIB)
+        #if canImport(zlib)
+        return inflateZlib(data, windowBits: -MAX_WBITS)
+        #else
+        return nil
+        #endif
     }
 
-    private static func decompress(_ data: Data, algorithm: compression_algorithm) -> Data? {
-        data.withUnsafeBytes { rawBuffer in
-            guard let src = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return nil }
-            let dstCapacity = min(max(data.count * 4, 4096), maxDecompressedBytes)
-            var dst = Data(count: dstCapacity)
-            let decodedSize = dst.withUnsafeMutableBytes { dstBuffer -> Int in
-                guard let dstPtr = dstBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return 0 }
-                return compression_decode_buffer(
-                    dstPtr, dstCapacity,
-                    src, data.count,
-                    nil, algorithm
-                )
+    #if canImport(zlib)
+    private static func inflateZlib(_ data: Data, windowBits: Int32) -> Data? {
+        guard !data.isEmpty else { return nil }
+
+        return data.withUnsafeBytes { rawBuffer -> Data? in
+            guard let inputBase = rawBuffer.baseAddress?.assumingMemoryBound(to: Bytef.self) else { return nil }
+
+            var stream = z_stream()
+            stream.next_in = UnsafeMutablePointer(mutating: inputBase)
+            stream.avail_in = uInt(data.count)
+
+            let initStatus = inflateInit2_(
+                &stream,
+                windowBits,
+                ZLIB_VERSION,
+                Int32(MemoryLayout<z_stream>.size)
+            )
+            guard initStatus == Z_OK else { return nil }
+            defer { inflateEnd(&stream) }
+
+            var output = Data()
+            let chunkSize = 16_384
+            var buffer = [UInt8](repeating: 0, count: chunkSize)
+
+            while true {
+                let inflateStatus: Int32 = buffer.withUnsafeMutableBytes { outBuffer in
+                    guard let outBase = outBuffer.baseAddress?.assumingMemoryBound(to: Bytef.self) else {
+                        return Z_DATA_ERROR
+                    }
+                    stream.next_out = outBase
+                    stream.avail_out = uInt(chunkSize)
+                    return inflate(&stream, Z_SYNC_FLUSH)
+                }
+
+                guard inflateStatus == Z_OK || inflateStatus == Z_STREAM_END else { return nil }
+
+                let produced = chunkSize - Int(stream.avail_out)
+                if produced > 0 {
+                    output.append(buffer, count: produced)
+                }
+
+                if inflateStatus == Z_STREAM_END { break }
+                if output.count > maxDecompressedBytes { return nil }
             }
-            guard decodedSize > 0, decodedSize <= maxDecompressedBytes else { return nil }
-            dst.count = decodedSize
-            return dst
+
+            return output.isEmpty ? nil : output
         }
     }
+    #endif
 }

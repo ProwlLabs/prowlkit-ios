@@ -5,8 +5,6 @@
 "Method Breakdown" = "Rincian Metode";
 "Persist sessions" = "Simpan sesi";
 "Restore captured logs after the app is killed." = "Pulihkan log setelah app di-kill.";
-"Debug notification" = "Notifikasi debug";
-"Show a notification with live request count." = "Tampilkan notifikasi dengan jumlah request live.";
 "Export HAR" = "Ekspor HAR";
 "Import Mock Rules" = "Impor Aturan Mock";
 "Export Mock Rules" = "Ekspor Aturan Mock";

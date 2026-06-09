@@ -5,8 +5,6 @@
 "Method Breakdown" = "메서드 분포";
 "Persist sessions" = "세션 유지";
 "Restore captured logs after the app is killed." = "앱 종료 후에도 로그를 복원합니다.";
-"Debug notification" = "디버그 알림";
-"Show a notification with live request count." = "요청 수를 알림으로 표시합니다.";
 "Export HAR" = "HAR 내보내기";
 "Import Mock Rules" = "Mock 규칙 가져오기";
 "Export Mock Rules" = "Mock 규칙 내보내기";

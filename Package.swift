@@ -29,7 +29,10 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "ProwlCore"
+            name: "ProwlCore",
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ]
         ),
         .target(
             name: "ProwlUI",
@@ -47,7 +50,10 @@ let package = Package(
         ),
         .testTarget(
             name: "ProwlTests",
-            dependencies: ["ProwlKit", "ProwlUI"]
+            dependencies: ["ProwlKit", "ProwlUI"],
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ]
         ),
     ]
 )

@@ -124,7 +124,7 @@ public actor ProwlMocker {
     }
 
     private func publishRules() {
-        NotificationCenter.default.post(name: .prowlMockRulesDidChange, object: nil)
+        ProwlRulesNotifier.postMockRulesDidChange()
     }
 
     private static func hasSameMatchKey(_ a: ProwlMockRule, _ b: ProwlMockRule) -> Bool {

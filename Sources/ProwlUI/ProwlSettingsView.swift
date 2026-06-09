@@ -17,20 +17,21 @@ struct ProwlSettingsView: View {
     var onExportText: () -> Void
     var onExportCURL: () -> Void
     var onExportHAR: () -> Void
-    
+
     @Environment(\.dismiss) private var dismiss
     @AppStorage("prowl_color_scheme") private var themeRaw: Int = 0
     @State private var isLoggingEnabled = true
     @State private var isSensitiveDataMaskingEnabled = false
     @AppStorage("prowl_floating_bubble") private var floatingBubbleEnabled = false
     @AppStorage("prowl_persist_sessions") private var persistSessions = false
-    #if os(iOS)
-    @AppStorage("prowl_debug_notification") private var debugNotification = false
-    #endif
     @State private var mockImportText = ""
     @State private var isMockImportPresented = false
     @State private var mockExportPayload: ProwlExportPayload?
-    
+
+    private var stats: ProwlRequestStats {
+        ProwlRequestStatsCalculator.compute(from: viewModel.logs)
+    }
+
     init(
         viewModel: ProwlInspectorViewModel,
         onExportText: @escaping () -> Void,
@@ -50,27 +51,24 @@ struct ProwlSettingsView: View {
             #if os(macOS)
             macSettingsLayout
             #else
-            defaultSettingsLayout
+            iosSettingsLayout
             #endif
         }
         .navigationTitle("Settings")
-        .onChange(of: isLoggingEnabled) { isEnabled in
-            ProwlRuntime.isLoggingEnabled = isEnabled
-        }
-        .onChange(of: isSensitiveDataMaskingEnabled) { isEnabled in
-            ProwlRuntime.isSensitiveDataMaskingEnabled = isEnabled
-        }
         #if os(iOS)
-        .onChange(of: debugNotification) { enabled in
+        .navigationBarTitleDisplayMode(.large)
+        #endif
+        .onChange(of: isLoggingEnabled) { ProwlRuntime.isLoggingEnabled = $0 }
+        .onChange(of: isSensitiveDataMaskingEnabled) { ProwlRuntime.isSensitiveDataMaskingEnabled = $0 }
+        .onChange(of: persistSessions) { ProwlSessionPersistence.isEnabled = $0 }
+        .onChange(of: floatingBubbleEnabled) { enabled in
+            UserDefaults.standard.set(enabled, forKey: "prowl_floating_bubble")
             NotificationCenter.default.post(
-                name: Notification.Name("prowlDebugNotificationPreferenceDidChange"),
+                name: Notification.Name("prowlFloatingBubblePreferenceDidChange"),
                 object: enabled
             )
         }
-        #endif
-        .sheet(isPresented: $isMockImportPresented) {
-            mockImportSheet
-        }
+        .sheet(isPresented: $isMockImportPresented) { mockImportSheet }
         .sheet(item: $mockExportPayload) { payload in
             #if os(iOS)
             ProwlActivityView(activityItems: [payload.content])
@@ -81,287 +79,393 @@ struct ProwlSettingsView: View {
         #if os(macOS)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
             }
         }
         #endif
     }
 
-    private var defaultSettingsLayout: some View {
-        Form {
-            Section(header: Text("Statistics")) {
-                ProwlStatsCharts(stats: ProwlRequestStatsCalculator.compute(from: viewModel.logs))
+    #if !os(macOS)
+    private var iosSettingsLayout: some View {
+        List {
+            Section {
+                overviewCard
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
             }
 
-            Section(header: Text("Filters")) {
-                Picker("Response Status", selection: $viewModel.statusFilter) {
+            Section {
+                ProwlSettingsToggleRow(
+                    icon: "antenna.radiowaves.left.and.right",
+                    tint: .blue,
+                    title: "Request Logging",
+                    isOn: $isLoggingEnabled
+                )
+                ProwlSettingsToggleRow(
+                    icon: "externaldrive",
+                    tint: .indigo,
+                    title: ProwlStrings.persistSessions,
+                    isOn: $persistSessions
+                )
+            } header: {
+                Text("Capture")
+            } footer: {
+                Text("When logging is off, the inspector stays available but new requests are not recorded.")
+            }
+
+            Section {
+                ProwlSettingsToggleRow(
+                    icon: "eye.slash.fill",
+                    tint: .orange,
+                    title: "Mask Sensitive Data",
+                    isOn: $isSensitiveDataMaskingEnabled
+                )
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Redacts Authorization headers, cookies, tokens, and common secret JSON fields.")
+            }
+
+            #if os(iOS)
+            Section {
+                ProwlSettingsToggleRow(
+                    icon: "circle.circle.fill",
+                    tint: ProwlSettingsDesign.brand,
+                    title: "Floating Debug Bubble",
+                    isOn: $floatingBubbleEnabled
+                )
+            } header: {
+                Text("Inspector")
+            } footer: {
+                Text("Draggable shortcut to open Prowl from any screen. Shake still works when the bubble is off.")
+            }
+            #endif
+
+            Section {
+                ProwlSettingsPickerRow(
+                    icon: "checkmark.seal.fill",
+                    tint: .green,
+                    title: "Response Status",
+                    selection: $viewModel.statusFilter
+                ) {
                     ForEach(ProwlStatusCategory.allCases) { filter in
                         Text(filter.title).tag(filter)
                     }
                 }
-
-                Picker("Content Type", selection: $viewModel.contentTypeFilter) {
+                ProwlSettingsPickerRow(
+                    icon: "doc.text.fill",
+                    tint: .teal,
+                    title: "Content Type",
+                    selection: $viewModel.contentTypeFilter
+                ) {
                     ForEach(ProwlContentTypeCategory.allCases) { filter in
                         Text(filter.rawValue).tag(filter)
                     }
                 }
+            } header: {
+                Text("Filters")
             }
 
-            Section(header: Text("Appearance")) {
-                Picker("Theme", selection: $themeRaw) {
+            Section {
+                Picker(selection: $themeRaw) {
                     Text("System").tag(0)
                     Text("Light").tag(1)
                     Text("Dark").tag(2)
+                } label: {
+                    ProwlSettingsLabel(
+                        icon: "circle.lefthalf.filled",
+                        tint: .purple,
+                        title: "Appearance"
+                    )
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             }
 
-            loggingSection
-            sensitiveDataSection
-            sessionPersistenceSection
-            mocksSection
-            #if os(iOS)
-            floatingBubbleSection
-            debugNotificationSection
-            #endif
-
-            Section(header: Text("Export & Share")) {
-                exportJSONButton
-                exportCURLButton
-                exportHARButton
-                Text("Export data for debugging and issue reporting.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+            Section {
+                NavigationLink {
+                    ProwlMocksView()
+                } label: {
+                    ProwlSettingsLabel(icon: "wand.and.stars", tint: .pink, title: "Active Mocks")
+                }
+                Button {
+                    Task {
+                        let rules = await ProwlMocker.shared.allRules()
+                        mockExportPayload = ProwlExportPayload(content: ProwlMockExporter.exportRules(rules))
+                    }
+                } label: {
+                    ProwlSettingsLabel(icon: "square.and.arrow.up", tint: .blue, title: ProwlStrings.exportMocks)
+                }
+                .buttonStyle(.plain)
+                Button { isMockImportPresented = true } label: {
+                    ProwlSettingsLabel(icon: "square.and.arrow.down", tint: .blue, title: ProwlStrings.importMocks)
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Mocking")
+            } footer: {
+                Text("Disable or delete mocks to restore live API responses without restarting the app.")
             }
 
-            Section(header: Text("Environment Info")) {
-                labeledStatRow(title: "App Name", value: appName)
-                labeledStatRow(title: "App Version", value: appVersion)
-                labeledStatRow(title: "Minimum OS", value: minOSVersion)
-                labeledStatRow(title: "OS Version", value: osVersion)
-                labeledStatRow(title: "Screen Size", value: screenResolution)
+            Section {
+                exportRow(
+                    title: "Share Logs",
+                    subtitle: "Readable request & response dump",
+                    icon: "doc.richtext",
+                    tint: .blue,
+                    action: { runExport(onExportText) }
+                )
+                exportRow(
+                    title: "Share cURL",
+                    subtitle: "Replay in Terminal",
+                    icon: "terminal",
+                    tint: .orange,
+                    action: { runExport(onExportCURL) }
+                )
+                exportRow(
+                    title: ProwlStrings.exportHAR,
+                    subtitle: "HAR 1.2 for DevTools",
+                    icon: "chart.bar.doc.horizontal",
+                    tint: .purple,
+                    action: { runExport(onExportHAR) }
+                )
+            } header: {
+                Text("Export")
+            }
+
+            Section {
+                aboutRow("App", appName)
+                aboutRow("Version", appVersion)
+                aboutRow("OS", osVersion)
+                aboutRow("Display", screenResolution)
+            } header: {
+                Text("About")
+            } footer: {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 6) {
+                        ProwlBrandIconView(height: 20, variant: .colored)
+                        Text("Crafted by Elmee")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 8)
             }
         }
+        .listStyle(.insetGrouped)
     }
+
+    private var overviewCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ProwlStatsCharts(stats: stats)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(ProwlSettingsDesign.cardBackground)
+                .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func exportRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                ProwlSettingsIcon(symbol: icon, tint: tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func aboutRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func runExport(_ action: @escaping () -> Void) {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: action)
+    }
+    #endif
 
     #if os(macOS)
     private var macSettingsLayout: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                macSection("Statistics") {
-                    labeledStatRow(title: "Total Requests", value: "\(viewModel.logs.count)")
-                    labeledStatRow(title: "Success Rate (2xx)", value: successRateString)
-                    labeledStatRow(title: "Total Errors (4xx/5xx)", value: "\(errorCount)")
+            VStack(alignment: .leading, spacing: 20) {
+                macPanel("Overview") {
+                    ProwlStatsCharts(stats: stats)
                 }
 
-                macSection("Filters") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        labeledControlRow(title: "Response Status") {
-                            Picker("Response Status", selection: $viewModel.statusFilter) {
-                                ForEach(ProwlStatusCategory.allCases) { filter in
-                                    Text(filter.title).tag(filter)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(width: 180)
+                macPanel("Capture") {
+                    macToggle("Request Logging", isOn: $isLoggingEnabled)
+                    Divider().padding(.leading, 44)
+                    macToggle(ProwlStrings.persistSessions, isOn: $persistSessions)
+                    Text("When logging is off, the inspector stays available but new requests are not recorded.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 44)
+                }
+
+                macPanel("Privacy") {
+                    macToggle("Mask Sensitive Data", isOn: $isSensitiveDataMaskingEnabled)
+                    Text("Redacts Authorization headers, cookies, tokens, and common secret JSON fields.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 44)
+                }
+
+                macPanel("Filters") {
+                    macPickerRow("Response Status", selection: $viewModel.statusFilter) {
+                        ForEach(ProwlStatusCategory.allCases) { filter in
+                            Text(filter.title).tag(filter)
                         }
-
-                        labeledControlRow(title: "Content Type") {
-                            Picker("Content Type", selection: $viewModel.contentTypeFilter) {
-                                ForEach(ProwlContentTypeCategory.allCases) { filter in
-                                    Text(filter.rawValue).tag(filter)
-                                }
-                            }
-                            .labelsHidden()
-                            .frame(width: 180)
+                    }
+                    Divider().padding(.leading, 44)
+                    macPickerRow("Content Type", selection: $viewModel.contentTypeFilter) {
+                        ForEach(ProwlContentTypeCategory.allCases) { filter in
+                            Text(filter.rawValue).tag(filter)
                         }
                     }
                 }
 
-                macSection("Appearance") {
-                    labeledControlRow(title: "Theme") {
-                        Picker("Theme", selection: $themeRaw) {
-                            Text("System").tag(0)
-                            Text("Light").tag(1)
-                            Text("Dark").tag(2)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                        .frame(width: 230)
+                macPanel("Appearance") {
+                    Picker("Theme", selection: $themeRaw) {
+                        Text("System").tag(0)
+                        Text("Light").tag(1)
+                        Text("Dark").tag(2)
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
 
-                macSection("Sensitive Data") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Mask sensitive data", isOn: $isSensitiveDataMaskingEnabled)
-                        Text("Default OFF. When ON, Prowl redacts values like Authorization bearer tokens, cookies, private keys, and common secret fields.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                macPanel("Mocking") {
+                    NavigationLink { ProwlMocksView() } label: {
+                        Label("Active Mocks", systemImage: "wand.and.stars")
                     }
+                    .buttonStyle(.plain)
                 }
 
-                macSection("Logging") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Enable request logging", isOn: $isLoggingEnabled)
-                        Text("When OFF, Prowl inspector stays available but request interception is paused.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                macSection("Mocking") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        NavigationLink {
-                            ProwlMocksView()
-                        } label: {
-                            Label("Active Mocks", systemImage: "wand.and.stars")
-                        }
-                        Text("Disable or delete mocks to restore live API responses without restarting the app.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                macSection("Export & Share") {
+                macPanel("Export") {
                     HStack(spacing: 10) {
                         if #available(macOS 13.0, *) {
                             ShareLink(item: formattedTextExportContent) {
-                                Label("Share / Email Logs (JSON)", systemImage: "envelope")
+                                Label("Share Logs", systemImage: "doc.richtext")
                             }
                             ShareLink(item: curlExportContent) {
-                                Label("Share cURL Commands", systemImage: "terminal")
+                                Label("Share cURL", systemImage: "terminal")
+                            }
+                            Button { onExportHAR() } label: {
+                                Label(ProwlStrings.exportHAR, systemImage: "chart.bar.doc.horizontal")
                             }
                         } else {
-                            Button {
-                                onExportText()
-                            } label: {
-                                Label("Export Logs (JSON)", systemImage: "envelope")
+                            Button { onExportText() } label: {
+                                Label("Share Logs", systemImage: "doc.richtext")
                             }
-                            Button {
-                                onExportCURL()
-                            } label: {
-                                Label("Export cURL Commands", systemImage: "terminal")
+                            Button { onExportCURL() } label: {
+                                Label("Share cURL", systemImage: "terminal")
                             }
                         }
                     }
-                    .buttonStyle(.borderedProminent)
                 }
 
-                macSection("Environment Info") {
-                    labeledStatRow(title: "App Name", value: appName)
-                    labeledStatRow(title: "App Version", value: appVersion)
-                    labeledStatRow(title: "Minimum OS", value: minOSVersion)
-                    labeledStatRow(title: "OS Version", value: osVersion)
-                    labeledStatRow(title: "Screen Size", value: screenResolution)
+                macPanel("About") {
+                    macAboutRow("App", appName)
+                    macAboutRow("Version", appVersion)
+                    macAboutRow("OS", osVersion)
                 }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 640, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .background(Color(NSColor.windowBackgroundColor))
     }
 
     @ViewBuilder
-    private func macSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func macPanel<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
             content()
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func macToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(title)
+        }
+        .toggleStyle(.switch)
+    }
+
+    private func macPickerRow<Selection: Hashable, Content: View>(
+        _ title: String,
+        selection: Binding<Selection>,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Picker(title, selection: selection, content: content)
+                .labelsHidden()
+                .frame(width: 180)
+        }
+    }
+
+    private func macAboutRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
     }
     #endif
-
-    private var successRateString: String {
-        let total = viewModel.logs.count
-        guard total > 0 else { return "0%" }
-        let successCount = viewModel.logs.filter { ($0.statusCode ?? 0) >= 200 && ($0.statusCode ?? 0) < 300 }.count
-        let percentage = (Double(successCount) / Double(total)) * 100
-        return String(format: "%.1f%%", percentage)
-    }
-
-    #if os(iOS)
-    private var floatingBubbleSection: some View {
-        Section(header: Text("Inspector")) {
-            Toggle("Floating debug bubble", isOn: $floatingBubbleEnabled)
-            Text("Draggable shortcut to open Prowl on any screen. Shake still works when the bubble is off.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-        .onChange(of: floatingBubbleEnabled) { _ in
-            NotificationCenter.default.post(
-                name: Notification.Name("prowlFloatingBubblePreferenceDidChange"),
-                object: nil
-            )
-        }
-    }
-    #endif
-
-    private var loggingSection: some View {
-        Section(header: Text("Logging")) {
-            Toggle("Enable request logging", isOn: $isLoggingEnabled)
-            Text("When OFF, Prowl inspector stays available but request interception is paused.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-    }
-
-    private var sensitiveDataSection: some View {
-        Section(header: Text("Sensitive Data")) {
-            Toggle("Mask sensitive data", isOn: $isSensitiveDataMaskingEnabled)
-            Text("Default OFF. When ON, Prowl redacts values like Authorization bearer tokens, cookies, private keys, and common secret fields.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-    }
-
-    private var mocksSection: some View {
-        Section(header: Text("Mocking")) {
-            NavigationLink {
-                ProwlMocksView()
-            } label: {
-                Label("Active Mocks", systemImage: "wand.and.stars")
-            }
-            Button(ProwlStrings.exportMocks) {
-                Task {
-                    let rules = await ProwlMocker.shared.allRules()
-                    mockExportPayload = ProwlExportPayload(content: ProwlMockExporter.exportRules(rules))
-                }
-            }
-            Button(ProwlStrings.importMocks) {
-                isMockImportPresented = true
-            }
-            Text("Disable or delete mocks to restore live API responses without restarting the app.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-    }
-
-    private var sessionPersistenceSection: some View {
-        Section(header: Text("Session")) {
-            Toggle(ProwlStrings.persistSessions, isOn: $persistSessions)
-            Text(ProwlStrings.persistSessionsHint)
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-    }
 
     private var mockImportSheet: some View {
         NavigationView {
             Form {
-                Section(header: Text("Paste mock rules JSON")) {
+                Section {
                     TextEditor(text: $mockImportText)
                         .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 200)
+                        .frame(minHeight: 220)
+                } header: {
+                    Text("Paste mock rules JSON")
                 }
             }
             .navigationTitle(ProwlStrings.importMocks)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { isMockImportPresented = false }
@@ -382,55 +486,6 @@ struct ProwlSettingsView: View {
         }
     }
 
-    #if os(iOS)
-    private var debugNotificationSection: some View {
-        Section(header: Text("Inspector")) {
-            Toggle(ProwlStrings.debugNotification, isOn: $debugNotification)
-            Text(ProwlStrings.debugNotificationHint)
-                .font(.footnote)
-                .foregroundColor(.secondary)
-        }
-    }
-    #endif
-
-    private var errorCount: Int {
-        viewModel.logs.filter { ($0.statusCode ?? 0) >= 400 || $0.errorDescription != nil }.count
-    }
-
-    private var appName: String {
-        (Bundle.main.infoDictionary?["CFBundleName"] as? String) ?? 
-        (Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String) ?? ""
-    }
-
-    private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "\(version) (\(build))"
-    }
-
-    private var minOSVersion: String {
-        Bundle.main.infoDictionary?["MinimumOSVersion"] as? String ?? "Not Specified"
-    }
-
-    private var osVersion: String {
-    #if os(iOS) || os(visionOS)
-        return "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
-    #elseif os(macOS)
-        return "macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
-    #else
-        return "Unknown OS"
-    #endif
-    }
-
-    private var screenResolution: String {
-    #if os(iOS) || os(visionOS)
-        let bounds = UIScreen.main.bounds
-        return "\(Int(bounds.width)) x \(Int(bounds.height))"
-    #else
-        return "Undefined"
-    #endif
-    }
-
     private var formattedTextExportContent: String {
         ProwlLogFormatter.export(logs: viewModel.filteredLogs, as: .formattedText)
     }
@@ -439,126 +494,109 @@ struct ProwlSettingsView: View {
         ProwlLogFormatter.export(logs: viewModel.filteredLogs, as: .curlCommands)
     }
 
-    private var exportJSONButton: some View {
-        Button(role: .none, action: {
-            #if os(macOS)
-            onExportText()
-            #else
-            dismiss()
+    private var appName: String {
+        (Bundle.main.infoDictionary?["CFBundleDisplayName"] as? String)
+            ?? (Bundle.main.infoDictionary?["CFBundleName"] as? String)
+            ?? "App"
+    }
 
-            // Adding slight delay allowing modal dismissal animation to complete
-            // before prompting UIActivityViewController to avoid hierarchy alerts
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                onExportText()
-            }
-            #endif
-        }) {
-            exportActionLabel(
-                title: "Share / Email Logs (JSON)",
-                subtitle: "Readable request/response dump",
-                systemImage: "envelope",
-                tint: .blue
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
+    }
+
+    private var osVersion: String {
+        #if os(iOS) || os(visionOS)
+        return "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
+        #elseif os(macOS)
+        return ProcessInfo.processInfo.operatingSystemVersionString
+        #else
+        return "Unknown"
+        #endif
+    }
+
+    private var screenResolution: String {
+        #if os(iOS) || os(visionOS)
+        let bounds = UIScreen.main.bounds
+        return "\(Int(bounds.width)) × \(Int(bounds.height))"
+        #else
+        return "—"
+        #endif
+    }
+}
+
+private enum ProwlSettingsDesign {
+    static let brand = Color(red: 0.424, green: 0.361, blue: 0.906)
+
+    static var cardBackground: Color {
+        #if os(iOS)
+        Color(uiColor: .secondarySystemGroupedBackground)
+        #else
+        Color.secondary.opacity(0.08)
+        #endif
+    }
+}
+
+private struct ProwlSettingsIcon: View {
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint, tint.opacity(0.82)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
-        }
-        .buttonStyle(.plain)
     }
+}
 
-    private var exportCURLButton: some View {
-        Button(role: .none, action: {
-            #if os(macOS)
-            onExportCURL()
-            #else
-            dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                onExportCURL()
-            }
-            #endif
-        }) {
-            exportActionLabel(
-                title: "Share cURL Commands",
-                subtitle: "Replay requests quickly in terminal",
-                systemImage: "terminal",
-                tint: .orange
-            )
-        }
-        .buttonStyle(.plain)
-    }
+private struct ProwlSettingsLabel: View {
+    let icon: String
+    let tint: Color
+    let title: String
 
-    private var exportHARButton: some View {
-        Button(role: .none, action: {
-            #if os(macOS)
-            onExportHAR()
-            #else
-            dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                onExportHAR()
-            }
-            #endif
-        }) {
-            exportActionLabel(
-                title: ProwlStrings.exportHAR,
-                subtitle: "HAR 1.2 for DevTools",
-                systemImage: "doc.text",
-                tint: .purple
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func exportActionLabel(
-        title: String,
-        subtitle: String,
-        systemImage: String,
-        tint: Color
-    ) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(tint)
-                .frame(width: 28, height: 28)
-                .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer(minLength: 8)
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.secondary)
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func labeledStatRow(title: String, value: String) -> some View {
-        HStack {
+    var body: some View {
+        HStack(spacing: 12) {
+            ProwlSettingsIcon(symbol: icon, tint: tint)
             Text(title)
-                .foregroundColor(.primary)
-            Spacer()
-            Text(value)
-                .foregroundColor(.secondary)
-                .monospacedDigit()
-                .multilineTextAlignment(.trailing)
+                .foregroundStyle(.primary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private func labeledControlRow<Content: View>(
-        title: String,
-        @ViewBuilder control: () -> Content
-    ) -> some View {
-        HStack {
-            Text(title)
-                .foregroundColor(.primary)
-            Spacer(minLength: 12)
-            control()
+private struct ProwlSettingsToggleRow: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            ProwlSettingsLabel(icon: icon, tint: tint, title: title)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct ProwlSettingsPickerRow<Selection: Hashable, Content: View>: View {
+    let icon: String
+    let tint: Color
+    let title: String
+    @Binding var selection: Selection
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Picker(selection: $selection, content: content) {
+            ProwlSettingsLabel(icon: icon, tint: tint, title: title)
+        }
     }
 }

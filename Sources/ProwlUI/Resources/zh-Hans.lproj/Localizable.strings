@@ -5,8 +5,6 @@
 "Method Breakdown" = "方法分布";
 "Persist sessions" = "持久化会话";
 "Restore captured logs after the app is killed." = "应用被杀死后恢复捕获的日志。";
-"Debug notification" = "调试通知";
-"Show a notification with live request count." = "显示实时请求数通知。";
 "Export HAR" = "导出 HAR";
 "Import Mock Rules" = "导入 Mock 规则";
 "Export Mock Rules" = "导出 Mock 规则";

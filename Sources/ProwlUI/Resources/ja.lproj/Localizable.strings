@@ -5,8 +5,6 @@
 "Method Breakdown" = "メソッド内訳";
 "Persist sessions" = "セッションを保持";
 "Restore captured logs after the app is killed." = "アプリ終了後もログを復元します。";
-"Debug notification" = "デバッグ通知";
-"Show a notification with live request count." = "リクエスト数を通知で表示します。";
 "Export HAR" = "HARをエクスポート";
 "Import Mock Rules" = "モックルールをインポート";
 "Export Mock Rules" = "モックルールをエクスポート";
