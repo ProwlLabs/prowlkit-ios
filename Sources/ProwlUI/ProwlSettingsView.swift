@@ -202,9 +202,9 @@ struct ProwlSettingsView: View {
                 }
                 .buttonStyle(.plain)
             } header: {
-                Text("Mocking")
+                Text("Mocks")
             } footer: {
-                Text("Disable or delete mocks to restore live API responses without restarting the app.")
+                Text("Import, export, and manage mock rules. Disable or delete mocks to restore live API responses without restarting the app.")
             }
 
             Section {
