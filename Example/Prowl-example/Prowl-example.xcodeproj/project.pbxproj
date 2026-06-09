@@ -1,0 +1,305 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B0DF96F96F004574B225643E /* Prowl_exampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0B7586F1B94700B697862B /* Prowl_exampleApp.swift */; };
+		2D96FE2A74ED427DB80B13A5 /* ProwlExampleBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36B31B206FD49929FA07156 /* ProwlExampleBootstrap.swift */; };
+		1E08BD14703948F69EFA0B8B /* ProwlExampleSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C84FFF038E5B489BA6BDFF25 /* ProwlExampleSupport.swift */; };
+		C02F382D6D8F43718B87761B /* ProwlExampleRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFEAE52DF2E469F9651A9D8 /* ProwlExampleRootView.swift */; };
+		058DCBCEB685459799BAEF3C /* ProwlExampleNetworkLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91C28C56AC40579F181CB0 /* ProwlExampleNetworkLabView.swift */; };
+		EA25DB86CF8345F59C3A0FD0 /* ProwlExampleAPIPlaygroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2007BCED9A854E39B33FE8D8 /* ProwlExampleAPIPlaygroundView.swift */; };
+		24E1606C51F64EB49A3030A3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FD351CFBE374A7CB7DC75B5 /* Assets.xcassets */; };
+		BD675E669525424B86F8173B /* ProwlKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4A3F56ACA9A14D4B907ADF1D /* ProwlKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		6A3E0A09FD8C426EAD887626 /* Prowl-example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Prowl-example.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF0B7586F1B94700B697862B /* Prowl_exampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prowl_exampleApp.swift; sourceTree = "<group>"; };
+		C36B31B206FD49929FA07156 /* ProwlExampleBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlExampleBootstrap.swift; sourceTree = "<group>"; };
+		C84FFF038E5B489BA6BDFF25 /* ProwlExampleSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlExampleSupport.swift; sourceTree = "<group>"; };
+		FDFEAE52DF2E469F9651A9D8 /* ProwlExampleRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlExampleRootView.swift; sourceTree = "<group>"; };
+		BD91C28C56AC40579F181CB0 /* ProwlExampleNetworkLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlExampleNetworkLabView.swift; sourceTree = "<group>"; };
+		2007BCED9A854E39B33FE8D8 /* ProwlExampleAPIPlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProwlExampleAPIPlaygroundView.swift; sourceTree = "<group>"; };
+		0FD351CFBE374A7CB7DC75B5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		08CBBC194BA64486BDDE41D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8F84541DE5514A318B51D40A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD675E669525424B86F8173B /* ProwlKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4A5D75A1F64449DA815B0447 = {
+			isa = PBXGroup;
+			children = (
+				FE98F99CA2A54905AD4F9F58 /* Prowl-example */,
+				494295A841524F249AC173FA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		494295A841524F249AC173FA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6A3E0A09FD8C426EAD887626 /* Prowl-example.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FE98F99CA2A54905AD4F9F58 /* Prowl-example */ = {
+			isa = PBXGroup;
+			children = (
+				AF0B7586F1B94700B697862B /* Prowl_exampleApp.swift */,
+				C36B31B206FD49929FA07156 /* ProwlExampleBootstrap.swift */,
+				C84FFF038E5B489BA6BDFF25 /* ProwlExampleSupport.swift */,
+				FDFEAE52DF2E469F9651A9D8 /* ProwlExampleRootView.swift */,
+				BD91C28C56AC40579F181CB0 /* ProwlExampleNetworkLabView.swift */,
+				2007BCED9A854E39B33FE8D8 /* ProwlExampleAPIPlaygroundView.swift */,
+				0FD351CFBE374A7CB7DC75B5 /* Assets.xcassets */,
+				08CBBC194BA64486BDDE41D4 /* Info.plist */,
+			);
+			path = "Prowl-example";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		49B5BE2D0A474C968C080BBA /* Prowl-example */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BA68FCF512FE4307880EB948 /* Build configuration list for PBXNativeTarget "Prowl-example" */;
+			buildPhases = (
+				05C05D4C64AE432AA62AB7DF /* Sources */,
+				8F84541DE5514A318B51D40A /* Frameworks */,
+				99D9F7C4ECBB4714AB62173F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Prowl-example";
+			packageProductDependencies = (
+				4A3F56ACA9A14D4B907ADF1D /* ProwlKit */,
+			);
+			productName = "Prowl-example";
+			productReference = 6A3E0A09FD8C426EAD887626 /* Prowl-example.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DD2F850C82EC4B3BBD5DB966 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					49B5BE2D0A474C968C080BBA = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = A47F8199744D4BC2B9C28EC6 /* Build configuration list for PBXProject "Prowl-example" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4A5D75A1F64449DA815B0447;
+			packageReferences = (
+				DB3D61B1BFBA45F6BDC0D145 /* XCLocalSwiftPackageReference "../../" */,
+			);
+			productRefGroup = 494295A841524F249AC173FA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				49B5BE2D0A474C968C080BBA /* Prowl-example */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		99D9F7C4ECBB4714AB62173F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24E1606C51F64EB49A3030A3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		05C05D4C64AE432AA62AB7DF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0DF96F96F004574B225643E /* Prowl_exampleApp.swift in Sources */,
+				2D96FE2A74ED427DB80B13A5 /* ProwlExampleBootstrap.swift in Sources */,
+				1E08BD14703948F69EFA0B8B /* ProwlExampleSupport.swift in Sources */,
+				C02F382D6D8F43718B87761B /* ProwlExampleRootView.swift in Sources */,
+				058DCBCEB685459799BAEF3C /* ProwlExampleNetworkLabView.swift in Sources */,
+				EA25DB86CF8345F59C3A0FD0 /* ProwlExampleAPIPlaygroundView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BB1DC6C5276C4026B2C8A5CA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = auto;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		08CBBC194BA64486BDDE41D3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = auto;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		05C05D4C64AE432AA62AB7E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Prowl-example/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Prowl Example";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prowllabs.prowl.example;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8F84541DE5514A318B51D40B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Prowl-example/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Prowl Example";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.prowllabs.prowl.example;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A47F8199744D4BC2B9C28EC6 /* Build configuration list for PBXProject "Prowl-example" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB1DC6C5276C4026B2C8A5CA /* Debug */,
+				08CBBC194BA64486BDDE41D3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BA68FCF512FE4307880EB948 /* Build configuration list for PBXNativeTarget "Prowl-example" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05C05D4C64AE432AA62AB7E0 /* Debug */,
+				8F84541DE5514A318B51D40B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		DB3D61B1BFBA45F6BDC0D145 /* XCLocalSwiftPackageReference "../../" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4A3F56ACA9A14D4B907ADF1D /* ProwlKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DB3D61B1BFBA45F6BDC0D145 /* XCLocalSwiftPackageReference "../../" */;
+			productName = ProwlKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = DD2F850C82EC4B3BBD5DB966 /* Project object */;
+}
