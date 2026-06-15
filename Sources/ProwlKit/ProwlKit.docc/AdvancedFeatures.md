@@ -158,7 +158,27 @@ Task { @MainActor in
 
 ## gRPC logging
 
-Log from a gRPC client interceptor via ``Prowl/logGrpcCall(fullMethodName:methodType:requestBody:responseBody:grpcStatusCode:errorDescription:startedAt:duration:)``:
+### gRPC Swift 2 (optional)
+
+Add the `ProwlGRPC` product when your app already uses [gRPC Swift 2](https://github.com/grpc/grpc-swift-2) (requires iOS 18+, macOS 15+):
+
+```swift
+import GRPCCore
+import ProwlGRPC
+
+try await withGRPCClient(
+    transport: transport,
+    interceptors: [ProwlGrpcSwiftClientInterceptor.registration()]
+) { client in
+    // invoke generated service methods
+}
+```
+
+Protobuf messages are encoded with `Encodable` when possible; pass a custom `encodeMessage` closure for `SwiftProtobuf.Message` payloads.
+
+### Manual hook
+
+Log from your own interceptor via ``Prowl/logGrpcCall(fullMethodName:methodType:requestBody:responseBody:grpcStatusCode:errorDescription:startedAt:duration:)``:
 
 ```swift
 Task { @MainActor in

@@ -26,6 +26,13 @@ let package = Package(
             name: "ProwlUI",
             targets: ["ProwlUI"]
         ),
+        .library(
+            name: "ProwlGRPC",
+            targets: ["ProwlGRPC"]
+        ),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.0.0"),
     ],
     targets: [
         .target(
@@ -46,6 +53,21 @@ let package = Package(
             dependencies: ["ProwlCore", "ProwlUI"],
             resources: [
                 .process("Resources")
+            ]
+        ),
+        .target(
+            name: "ProwlGRPC",
+            dependencies: [
+                "ProwlCore",
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+            ],
+            swiftSettings: [
+                .enableExperimentalFeature(
+                    "AvailabilityMacro=gRPCSwift 2.0:macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0"
+                ),
+                .enableExperimentalFeature(
+                    "AvailabilityMacro=gRPCSwift 2.3:macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0"
+                ),
             ]
         ),
         .testTarget(

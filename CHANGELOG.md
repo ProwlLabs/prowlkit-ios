@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional `ProwlGRPC` SPM product with `ProwlGrpcSwiftClientInterceptor` for gRPC Swift 2 (iOS 18+, macOS 15+).
+
 ## [1.0.0] - 2026-06-04
 
 Initial public release of ProwlKit.

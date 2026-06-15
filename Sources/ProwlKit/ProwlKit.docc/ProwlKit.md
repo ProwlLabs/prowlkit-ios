@@ -94,6 +94,7 @@ handled inside the package — your app’s networking behavior stays unchanged.
 - <doc:Configuration>
 - <doc:AdvancedFeatures>
 - <doc:HTTPClientIntegrations>
+- <doc:GRPCIntegrations>
 
 ### Entry point
 
@@ -147,6 +148,8 @@ handled inside the package — your app’s networking behavior stays unchanged.
 ### Third-party HTTP clients
 
 See <doc:HTTPClientIntegrations> for Alamofire and Moya setup (symbols available when those packages are linked to your target).
+
+See <doc:GRPCIntegrations> for the optional gRPC Swift 2 interceptor (`ProwlGRPC` product).
 
 ### Export and formatting
 

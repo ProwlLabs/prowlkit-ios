@@ -17,18 +17,24 @@ public enum ProwlGrpcLogger {
         statusCode: Int? = nil,
         errorDescription: String? = nil,
         startedAt: Date = Date(),
-        duration: TimeInterval = 0
+        duration: TimeInterval = 0,
+        requestHeaders: [String: String] = [:],
+        responseHeaders: [String: String] = [:],
+        hostIp: String? = nil
     ) async {
         let url = URL(string: "grpc://\(fullMethodName)")
         let log = NetworkLog(
             url: url,
             method: methodType.uppercased(),
+            requestHeaders: requestHeaders,
             requestBody: requestBody.map { NetworkLog.Body(data: $0, contentType: "application/grpc") },
+            responseHeaders: responseHeaders,
             responseBody: responseBody.map { NetworkLog.Body(data: $0, contentType: "application/grpc") },
             statusCode: statusCode,
             startedAt: startedAt,
             duration: duration,
             errorDescription: errorDescription,
+            hostIp: hostIp,
             networkProtocol: .grpc
         )
         let storage = await ProwlRuntime.shared.currentStorage()

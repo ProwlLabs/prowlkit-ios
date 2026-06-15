@@ -75,6 +75,7 @@
 - Endpoint rate alerts
 - Export logs as formatted text, cURL, or HAR 1.2
 - WebSocket and gRPC manual logging hooks
+- Optional gRPC Swift 2 interceptor (`ProwlGRPC` product, iOS 18+)
 - Activation shortcuts:
   - iOS shake gesture & floating debug bubble
   - macOS menu bar popover + `Command + Shift + P`
@@ -334,6 +335,22 @@ task.resume()
 
 ### gRPC logging
 
+**gRPC Swift 2 (optional, iOS 18+)**
+
+```swift
+import GRPCCore
+import ProwlGRPC
+
+try await withGRPCClient(
+    transport: transport,
+    interceptors: [ProwlGrpcSwiftClientInterceptor.registration()]
+) { client in
+    // invoke generated service methods
+}
+```
+
+**Manual hook**
+
 Log from your gRPC client interceptor:
 
 ```swift
@@ -497,6 +514,7 @@ Full **DocC** documentation ships with the `ProwlKit` target:
 | Configuration | `Sources/ProwlKit/ProwlKit.docc/Configuration.md` |
 | Advanced Features | `Sources/ProwlKit/ProwlKit.docc/AdvancedFeatures.md` |
 | HTTP Client Integrations | `Sources/ProwlKit/ProwlKit.docc/HTTPClientIntegrations.md` |
+| gRPC Integrations | `Sources/ProwlKit/ProwlKit.docc/GRPCIntegrations.md` |
 
 In Xcode: **Product → Build Documentation**. The [Swift Package Index](https://swiftpackageindex.com) renders the catalogue from tagged releases.
 
