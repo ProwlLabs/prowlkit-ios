@@ -6,12 +6,118 @@
 import Foundation
 
 enum ProwlCLIInstall {
-    static func install(userLocal: Bool) throws -> String {
-        let packageRoot = try locatePackageRoot()
-        let binaryPath = try buildReleaseBinary(packageRoot: packageRoot)
+    private static let repo = "ProwlKit/prowlkit-ios"
+
+    static func install(userLocal: Bool, fromSource: Bool, version: String?) throws -> String {
         let destination = userLocal ? userLocalBinPath() : URL(fileURLWithPath: "/usr/local/bin/prowl")
-        try installBinary(from: binaryPath, to: destination, userLocal: userLocal)
+
+        if fromSource {
+            let packageRoot = try locatePackageRoot()
+            let binaryPath = try buildReleaseBinary(packageRoot: packageRoot)
+            try installBinary(from: binaryPath, to: destination, userLocal: userLocal)
+            return destination.path
+        }
+
+        if let binary = try? downloadReleaseBinary(to: destination, version: version) {
+            return binary
+        }
+
+        if let packageRoot = try? locatePackageRoot() {
+            let binaryPath = try buildReleaseBinary(packageRoot: packageRoot)
+            try installBinary(from: binaryPath, to: destination, userLocal: userLocal)
+            return destination.path
+        }
+
+        throw ProwlCLIError.installFailed(
+            """
+            Could not download a release binary and no local Package.swift was found.
+            Install via Homebrew or the install script:
+              brew install ProwlKit/prowlkit-ios/prowl
+              curl -fsSL https://raw.githubusercontent.com/\(repo)/main/Scripts/install.sh | bash
+            """
+        )
+    }
+
+    private static func downloadReleaseBinary(to destination: URL, version: String?) throws -> String {
+        let tag = try version ?? fetchLatestReleaseTag()
+        let arch = currentArchitectureSuffix()
+        let assetName = "prowl-macos-\(arch)"
+        let url = URL(string: "https://github.com/\(repo)/releases/download/\(tag)/\(assetName)")!
+
+        let semaphore = DispatchSemaphore(value: 0)
+        final class DownloadResult: @unchecked Sendable {
+            var data: Data?
+            var error: Error?
+        }
+        let result = DownloadResult()
+
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            defer { semaphore.signal() }
+            if let error {
+                result.error = error
+                return
+            }
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200, let data, !data.isEmpty else {
+                result.error = ProwlCLIError.installFailed("Release asset not found: \(assetName) (\(tag))")
+                return
+            }
+            result.data = data
+        }
+        task.resume()
+        _ = semaphore.wait(timeout: .now() + 120)
+
+        guard let data = result.data else {
+            throw result.error ?? ProwlCLIError.installFailed("Download timed out.")
+        }
+
+        let fm = FileManager.default
+        try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if fm.fileExists(atPath: destination.path) {
+            try fm.removeItem(at: destination)
+        }
+        try data.write(to: destination)
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: destination.path)
         return destination.path
+    }
+
+    private static func fetchLatestReleaseTag() throws -> String {
+        let url = URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!
+        let semaphore = DispatchSemaphore(value: 0)
+        final class TagResult: @unchecked Sendable {
+            var tag: String?
+            var error: Error?
+        }
+        let result = TagResult()
+
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            defer { semaphore.signal() }
+            if let error {
+                result.error = error
+                return
+            }
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let tag = json["tag_name"] as? String else {
+                result.error = ProwlCLIError.installFailed("Could not resolve latest release.")
+                return
+            }
+            result.tag = tag
+        }
+        task.resume()
+        _ = semaphore.wait(timeout: .now() + 30)
+
+        guard let tag = result.tag else {
+            throw result.error ?? ProwlCLIError.installFailed("Could not resolve latest release.")
+        }
+        return tag
+    }
+
+    private static func currentArchitectureSuffix() -> String {
+        #if arch(arm64)
+        return "arm64"
+        #else
+        return "x86_64"
+        #endif
     }
 
     private static func locatePackageRoot() throws -> URL {

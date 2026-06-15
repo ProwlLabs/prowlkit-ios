@@ -86,9 +86,27 @@ Terminal companion for Prowl — live relay, session discovery, and export. Requ
 
 ### Quick start (terminal-first)
 
+**Homebrew (recommended):**
+
+```bash
+brew install ProwlKit/prowlkit-ios/prowl
+# or latest main while waiting for a tagged CLI release:
+brew install --HEAD ProwlKit/prowlkit-ios/prowl
+prowl listen
+```
+
+**One-liner (curl):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ProwlKit/prowlkit-ios/main/Scripts/install.sh | bash
+prowl listen
+```
+
+**From a local clone:**
+
 ```bash
 cd prowlkit-ios
-prowl install --user          # builds and installs to ~/.local/bin
+prowl install --user          # download release or build from source
 prowl listen                  # default command — streams live traffic
 ```
 
@@ -105,14 +123,29 @@ Or set `PROWL_RELAY=1` in your Xcode scheme environment variables.
 
 ### Install
 
+| Method | Command |
+|--------|---------|
+| **Homebrew** | `brew install ProwlKit/prowlkit-ios/prowl` |
+| **curl script** | `curl -fsSL https://raw.githubusercontent.com/ProwlKit/prowlkit-ios/main/Scripts/install.sh \| bash` |
+| **prowl CLI** | `prowl install --user` (downloads latest release binary) |
+| **From source** | `PROWL_FROM_SOURCE=1 curl -fsSL .../install.sh \| bash` or `prowl install --from-source` |
+
+Homebrew installs from source via SwiftPM (requires Xcode 15+). The curl script and `prowl install` prefer prebuilt binaries from [GitHub Releases](https://github.com/ProwlKit/prowlkit-ios/releases) and fall back to a source build.
+
+Install to a custom directory:
+
 ```bash
-git clone https://github.com/ProwlKit/prowlkit-ios.git
-cd prowlkit-ios
-prowl install                 # /usr/local/bin (sudo)
-prowl install --user          # ~/.local/bin (no sudo)
+PROWL_INSTALL_DIR=/opt/bin curl -fsSL .../install.sh | bash
 ```
 
-Or from a local checkout without installing:
+Pin a release version:
+
+```bash
+PROWL_VERSION=1.1.0 curl -fsSL .../install.sh | bash
+prowl install --user --version 1.1.0
+```
+
+Run without installing:
 
 ```bash
 swift run prowl listen

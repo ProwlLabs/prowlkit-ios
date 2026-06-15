@@ -229,14 +229,20 @@ extension ProwlCLI {
 
     struct Install: ParsableCommand {
         static let configuration = CommandConfiguration(
-            abstract: "Build and install the prowl binary to PATH."
+            abstract: "Install or upgrade the prowl binary (GitHub release, source, or Homebrew)."
         )
 
         @Flag(name: .long, help: "Install to ~/.local/bin (no sudo).")
         var user: Bool = false
 
+        @Flag(name: .long, help: "Build from local Package.swift instead of downloading a release.")
+        var fromSource: Bool = false
+
+        @Option(name: .long, help: "Release tag to install (default: latest GitHub release).")
+        var version: String?
+
         mutating func run() throws {
-            let path = try ProwlCLIInstall.install(userLocal: user)
+            let path = try ProwlCLIInstall.install(userLocal: user, fromSource: fromSource, version: version)
             print("Installed prowl → \(path)")
             if user {
                 let binDir = (path as NSString).deletingLastPathComponent

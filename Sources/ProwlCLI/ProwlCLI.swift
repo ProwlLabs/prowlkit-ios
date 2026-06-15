@@ -23,6 +23,7 @@ struct ProwlCLI: ParsableCommand {
           Prowl.relayEndpoint = URL(string: "http://127.0.0.1:9284")!
         Or set environment variable PROWL_RELAY=1 in your Xcode scheme.
         """,
+        version: ProwlCLIVersion.current,
         subcommands: [
             Listen.self,
             Sessions.self,
