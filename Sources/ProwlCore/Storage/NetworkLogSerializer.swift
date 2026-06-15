@@ -8,8 +8,9 @@
 
 import Foundation
 
-enum NetworkLogSerializer {
-    static func toJSON(_ logs: [NetworkLog]) -> String {
+/// JSON codec for Prowl session files (`prowl_session.json`) and CLI tooling.
+public enum ProwlSessionCodec {
+    public static func toJSON(_ logs: [NetworkLog]) -> String {
         let objects = logs.map { logToDictionary($0) }
         guard JSONSerialization.isValidJSONObject(objects),
               let data = try? JSONSerialization.data(withJSONObject: objects, options: [.prettyPrinted, .sortedKeys]),
@@ -19,7 +20,7 @@ enum NetworkLogSerializer {
         return json
     }
 
-    static func fromJSON(_ json: String) -> [NetworkLog] {
+    public static func fromJSON(_ json: String) -> [NetworkLog] {
         let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("["),
               let data = trimmed.data(using: .utf8),

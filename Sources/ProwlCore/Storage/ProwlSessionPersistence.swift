@@ -24,7 +24,7 @@ package enum ProwlSessionPersistence {
               let json = try? String(contentsOf: fileURL, encoding: .utf8) else {
             return
         }
-        let logs = NetworkLogSerializer.fromJSON(json)
+        let logs = ProwlSessionCodec.fromJSON(json)
         await storage.restoreIfEmpty(logs)
     }
 
@@ -34,7 +34,7 @@ package enum ProwlSessionPersistence {
             guard let fileURL = sessionFileURL() else { return }
             do {
                 try ensureDirectory(for: fileURL)
-                let json = NetworkLogSerializer.toJSON(logs)
+                let json = ProwlSessionCodec.toJSON(logs)
                 try json.write(to: fileURL, atomically: true, encoding: .utf8)
             } catch {
                 // Best-effort persistence for debugger tooling.

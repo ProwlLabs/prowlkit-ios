@@ -46,6 +46,7 @@ public actor ProwlStorage {
         logs.append(log)
         trimToLimit()
         publish()
+        ProwlRelay.send(log)
     }
 
     /// Returns a snapshot of all currently retained logs.

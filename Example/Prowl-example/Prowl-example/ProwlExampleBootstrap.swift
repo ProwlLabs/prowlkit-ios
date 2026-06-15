@@ -22,6 +22,9 @@ enum ProwlExampleBootstrap {
         Prowl.customSessionDelegate = ProwlExampleSessionDelegate()
         Prowl.responseBodyLoggingTransformer = ProwlExampleResponseTransform()
         Prowl.isSessionPersistenceEnabled = true
+        #if DEBUG
+        Prowl.relayEndpoint = ProwlRelay.defaultEndpoint
+        #endif
         Prowl.endpointRateAlertRules = [
             .init(match: .urlContains("jsonplaceholder.typicode.com/posts"), threshold: 5)
         ]

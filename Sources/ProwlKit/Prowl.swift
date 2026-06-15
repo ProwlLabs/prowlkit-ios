@@ -197,6 +197,15 @@ public enum Prowl {
         set { ProwlSessionPersistence.isEnabled = newValue }
     }
 
+    /// When set, each captured log is streamed to a Prowl CLI relay (`prowl listen`).
+    ///
+    /// Also reads `PROWL_RELAY_URL` or `PROWL_RELAY=1` (defaults to http://127.0.0.1:9284)
+    /// when ``start(ignoredURLs:ignoredURLRegexes:)`` runs.
+    public static var relayEndpoint: URL? {
+        get { ProwlRelay.endpoint }
+        set { ProwlRelay.endpoint = newValue }
+    }
+
     /// Logs a gRPC call into the inspector (manual integration hook).
     public static func logGrpcCall(
         fullMethodName: String,
@@ -298,6 +307,8 @@ public enum Prowl {
 
         ignoredURLs.forEach { ignoreURL($0) }
         ignoredURLRegexes.forEach { ignoreURL(regex: $0) }
+
+        ProwlRelay.applyEnvironmentDefaults()
 
         Task {
             await ProwlMockPersistence.restore(into: ProwlMocker.shared)

@@ -80,6 +80,82 @@
   - iOS shake gesture & floating debug bubble
   - macOS menu bar popover + `Command + Shift + P`
 
+## Prowl CLI (macOS)
+
+Terminal companion for Prowl — live relay, session discovery, and export. Requires macOS 12+.
+
+### Quick start (terminal-first)
+
+```bash
+cd prowlkit-ios
+prowl install --user          # builds and installs to ~/.local/bin
+prowl listen                  # default command — streams live traffic
+```
+
+In another terminal, run your app (macOS or iOS Simulator) with ProwlKit:
+
+```swift
+#if DEBUG
+Prowl.relayEndpoint = URL(string: "http://127.0.0.1:9284")!
+#endif
+Prowl.start()
+```
+
+Or set `PROWL_RELAY=1` in your Xcode scheme environment variables.
+
+### Install
+
+```bash
+git clone https://github.com/ProwlKit/prowlkit-ios.git
+cd prowlkit-ios
+prowl install                 # /usr/local/bin (sudo)
+prowl install --user          # ~/.local/bin (no sudo)
+```
+
+Or from a local checkout without installing:
+
+```bash
+swift run prowl listen
+swift run prowl --help
+```
+
+### Commands
+
+```bash
+# Live traffic (default when you run `prowl` with no subcommand)
+prowl listen
+prowl listen --port 9284
+
+# Discover apps / sessions on this Mac
+prowl sessions                # macOS + iOS Simulator session files
+prowl devices                 # booted simulators + macOS status
+prowl doctor                  # check CLI, relay port, discovery
+
+# Tail a session file
+prowl watch
+prowl watch ~/path/to/prowl_session.json
+
+# Inspect saved sessions
+prowl show
+prowl show session.json --filter "method:GET status:2xx"
+prowl show session.json --verbose
+
+# Export
+prowl export session.json --format har -o traffic.har
+prowl export session.json --format curl -o replay.sh
+prowl export session.json --format text
+prowl export session.json --format json
+
+# Redact secrets before sharing
+prowl redact session.json -o safe-session.json
+```
+
+Enable session persistence so `prowl sessions` can find offline logs:
+
+```swift
+Prowl.isSessionPersistenceEnabled = true
+```
+
 ## Install (SPM)
 
 In Xcode:
